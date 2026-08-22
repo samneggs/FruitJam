@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside a Fruit Jam Console — MicroPython is fast enough to make games</title>
+<meta name="description" content="Field notes on a desktop retro game console built on an Adafruit Fruit Jam (RP2350), driving DVI video and I2S audio from MicroPython, with no OS, GPU, or game engine.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  --ink:#15171C;
+  --ink-2:#4A4F58;
+  --mute:#8A8F98;
+  --paper:#E9EAEC;
+  --panel:#FFFFFF;
+  --rule:#C9CCD2;
+  --jam:#A81F52;
+  --jam-lite:#E0417A;
+  --slate:#2E4A6B;
+
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"Source Serif 4",Georgia,serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+
+  --rail:230px;
+  --measure:68ch;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:18px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--jam);text-decoration:none;border-bottom:1px solid rgba(168,31,82,.3)}
+a:hover{border-bottom-color:var(--jam)}
+:focus-visible{outline:2px solid var(--jam);outline-offset:3px}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.wrap{display:flex;align-items:flex-start;max-width:1240px;margin:0 auto;padding:0 28px}
+.rail{
+  position:sticky;top:0;flex:0 0 var(--rail);width:var(--rail);
+  height:100vh;padding:38px 24px 38px 0;border-right:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:26px;
+}
+.rail-mark{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);line-height:1.5}
+.rail-mark b{display:block;color:var(--ink);font-weight:700;letter-spacing:.06em}
+.rail-nav{display:flex;flex-direction:column;gap:2px}
+.rail-nav a{
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;
+  color:var(--ink-2);border:0;padding:5px 0 5px 14px;border-left:2px solid transparent;
+}
+.rail-nav a:hover{color:var(--ink)}
+.rail-nav a.on{color:var(--jam);border-left-color:var(--jam)}
+.rail-foot{margin-top:auto;font-family:var(--mono);font-size:11px;color:var(--mute)}
+
+.main{flex:1 1 auto;min-width:0;padding:0 0 0 48px}
+.col{max-width:var(--measure)}
+
+/* ============================================================
+   TYPE
+   ============================================================ */
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
+h1{font-size:clamp(38px,5.4vw,66px)}
+h2{font-size:clamp(27px,3.2vw,38px);margin-bottom:14px}
+h3{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:34px 0 8px}
+p{margin:0 0 18px}
+.lede{font-size:21px;color:var(--ink-2)}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--jam);margin:0 0 14px;
+}
+.note{font-family:var(--mono);font-size:12.5px;color:var(--mute);line-height:1.55}
+
+.sec{padding:74px 0;border-top:1px solid var(--rule)}
+.sec:first-of-type{border-top:0}
+
+/* ============================================================
+   HERO + SIGNATURE: frame budget ruler
+   ============================================================ */
+.hero{padding:76px 0 66px}
+.hero h1{max-width:16ch}
+.hero .lede{max-width:56ch;margin-top:22px}
+
+.budget{margin:44px 0 0;max-width:860px}
+.budget-head{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+.budget-bar{
+  position:relative;display:flex;height:56px;background:var(--panel);
+  border:1px solid var(--rule);overflow:hidden;
+}
+.seg{position:relative;display:flex;align-items:flex-end;padding:6px 8px;border-right:1px solid var(--rule);overflow:hidden}
+.seg:last-child{border-right:0}
+.seg span{font-family:var(--mono);font-size:10.5px;line-height:1.25;color:var(--ink-2);white-space:nowrap}
+.seg.s-idle{background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(138,143,152,.16) 5px 10px)}
+.seg.s-work{background:rgba(46,74,107,.10)}
+.seg.s-draw{background:rgba(46,74,107,.20)}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--jam-lite);left:0;will-change:transform}
+.budget-foot{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--mute);margin-top:9px}
+
+/* ============================================================
+   BLOCKS
+   ============================================================ */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px;margin:26px 0}
+.card{background:var(--panel);border:1px solid var(--rule);padding:20px}
+.card h3{margin:0 0 6px}
+.card p{margin:0;font-size:16px;color:var(--ink-2)}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-family:var(--mono);font-size:13px}
+th{text-align:left;font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding:0 12px 8px 0;border-bottom:1px solid var(--rule)}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+td:first-child{color:var(--ink)}
+
+pre{
+  background:var(--ink);color:#E4E6EA;font-family:var(--mono);font-size:12.5px;line-height:1.62;
+  padding:18px 20px;overflow-x:auto;margin:20px 0;
+}
+pre .c{color:#8A8F98}
+pre .k{color:#E0417A}
+pre .n{color:#8FC7E8}
+code{font-family:var(--mono);font-size:.86em;background:rgba(21,23,28,.06);padding:1px 5px}
+a code{background:rgba(168,31,82,.09)}
+
+.todo{
+  display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  background:rgba(224,65,122,.12);color:var(--jam);padding:1px 6px;
+}
+
+ul.tight{margin:0 0 18px;padding-left:20px}
+ul.tight li{margin-bottom:7px}
+
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:26px 0}
+.game{background:var(--panel);padding:14px 16px}
+.game b{display:block;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:-.01em}
+.game span{font-family:var(--mono);font-size:11px;color:var(--mute)}
+
+.step{display:flex;gap:18px;margin-bottom:22px}
+.step-n{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--jam);padding-top:4px;flex:0 0 28px}
+.step-b{flex:1 1 auto}
+.step-b h3{margin:0 0 4px}
+.step-b p{margin:0;font-size:16px;color:var(--ink-2)}
+
+footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mono);font-size:12px;color:var(--mute)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:900px){
+  .wrap{flex-direction:column;padding:0 20px}
+  .rail{position:static;width:100%;height:auto;flex:none;padding:22px 0 16px;border-right:0;border-bottom:1px solid var(--rule);gap:14px}
+  .rail-nav{flex-direction:row;flex-wrap:wrap;gap:4px 16px}
+  .rail-nav a{padding:2px 0;border-left:0}
+  .rail-nav a.on{border-left:0}
+  .rail-foot{margin-top:0}
+  .main{padding:0}
+  body{font-size:17px}
+  .seg span{display:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .playhead{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ==========================================================
+     RAIL / NAV
+     ========================================================== -->
+<aside class="rail">
+  <div class="rail-mark">
+    <b>Inside a Fruit&nbsp;Jam Console</b>
+    Field notes
+  </div>
+  <nav class="rail-nav" id="nav">
+    <a href="#story">System story</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#games">Games</a>
+    <a href="#deep-dive">Deep dive</a>
+    <a href="#build">Build guide</a>
+    <a href="#index">Index</a>
+  </nav>
+  <div class="rail-foot">RP2350 · MicroPython<br>Last updated <span class="todo">DATE</span></div>
+</aside>
+
+<main class="main">
+
+<!-- ==========================================================
+     HERO — thesis + frame budget ruler
+     ========================================================== -->
+<section class="hero">
+  <p class="eyebrow">Desktop console · Adafruit Fruit Jam · RP2350</p>
+  <h1>MicroPython is fast enough to make games.</h1>
+  <p class="lede">A desktop game console built from an Adafruit Fruit Jam board, a 15-inch monitor and a gamepad. No operating system, no GPU, no game engine — the games are Python, and they hold 60 frames a second because the software is written around the frame, not around the language.</p>
+
+  <div class="budget">
+    <div class="budget-head">
+      <span>One frame · 16.67 ms</span>
+      <span>Shown at 1&#8202;/&#8202;100 speed</span>
+    </div>
+    <div class="budget-bar" id="bar" role="img" aria-label="Breakdown of work inside one 16.67 millisecond frame: input, update, clear, draw, present, and idle time waiting for vertical sync.">
+      <div class="seg s-work" style="flex:6"><span>input<br>read</span></div>
+      <div class="seg s-work" style="flex:16"><span>update<br>world</span></div>
+      <div class="seg s-draw" style="flex:14"><span>clear<br>framebuffer</span></div>
+      <div class="seg s-draw" style="flex:34"><span>draw<br>sprites</span></div>
+      <div class="seg s-work" style="flex:8"><span>audio<br>refill</span></div>
+      <div class="seg s-idle" style="flex:22"><span>idle —<br>wait for vsync</span></div>
+      <div class="playhead" id="playhead"></div>
+    </div>
+    <div class="budget-foot">
+      <span>0 µs</span>
+      <span>Headroom left over: <span class="todo">FILL IN</span></span>
+      <span>16,670 µs</span>
+    </div>
+  </div>
+  <p class="note" style="margin-top:14px;max-width:66ch">Every game on this console is built to finish its work before the display asks for the next frame. The idle band on the right is the whole design goal — proof there was time to spare.</p>
+</section>
+
+<!-- ==========================================================
+     SECTION 1 — SYSTEM STORY
+     ========================================================== -->
+<section class="sec" id="story">
+  <div class="col">
+    <p class="eyebrow">System story</p>
+    <h2>What this thing is</h2>
+    <p>It is a small desktop console. A Fruit Jam board sits next to a 15-inch monitor and drives it directly over DVI. A USB gamepad plugs into the board. Power is a single USB-C cable. There is no case fan, no storage beyond onboard flash, and nothing between the game code and the hardware.</p>
+    <p>Games are written in MicroPython and copied onto the board as <code>.py</code> files. A launcher lists whatever is in <code>/apps</code> and starts the one you pick. Turning it on takes about a second.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>No operating system</h3>
+        <p>MicroPython is the whole runtime. Nothing schedules against you, so frame timing is yours to control.</p>
+      </div>
+      <div class="card">
+        <h3>No GPU</h3>
+        <p>Pixels are written into a framebuffer in RAM by the CPU, then handed to the display by DMA.</p>
+      </div>
+      <div class="card">
+        <h3>No engine</h3>
+        <p>Each game carries its own loop, its own renderer, and its own idea of what a sprite is.</p>
+      </div>
+      <div class="card">
+        <h3>One language</h3>
+        <p>Python all the way down, with hot paths recompiled by the Viper emitter or hand-written in Thumb-2 assembly.</p>
+      </div>
+    </div>
+
+    <h3>Why it is worth documenting</h3>
+    <p>The usual advice is that Python is too slow for real-time graphics on a microcontroller. That is true of Python written the usual way. It stops being true once allocation is pushed out of the main loop, hot pixel work is compiled rather than interpreted, and the frame is treated as a hard budget instead of a hope.</p>
+    <p><span class="todo">FILL IN</span> — a paragraph on how the project started and what the first working demo was.</p>
+  </div>
+</section>
+
+<!-- ==========================================================
+     SECTION 2 — ARCHITECTURE
+     ========================================================== -->
+<section class="sec" id="architecture">
+  <div class="col">
+    <p class="eyebrow">Architecture</p>
+    <h2>How the system holds together</h2>
+    <p>Six things have to happen every frame: read input, advance the world, clear the framebuffer, draw it, keep audio fed, and hand the finished frame to the display at the moment it is wanted. Each one is handled by a different part of the chip.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Subsystem</th><th>Handled by</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Video out</td><td>HSTX + DMA</td><td>TMDS-encoded DVI driven straight from a framebuffer in RAM; ping-pong DMA with an IRQ restart, no CPU in the pixel path</td></tr>
+      <tr><td>Framebuffer</td><td>SRAM (or PSRAM)</td><td>320×240 RGB565 for detailed games, 640×480 RGB332 for vector-style ones; placement matters, PSRAM is slower to write than SRAM</td></tr>
+      <tr><td>Drawing</td><td>Core 0, Viper / asm</td><td>Sprite blits, fills and line work compiled to native code; clipping resolved once, before the inner loops</td></tr>
+      <tr><td>Game logic</td><td>Core 0 or Core 1</td><td>Some games split logic and rendering across the two cores; the split is per-game, not a framework rule</td></tr>
+      <tr><td>Audio</td><td>I2S + DMA</td><td>TLV320DAC3100 fed by IRQ-driven ping-pong buffers; the mixer sums voices in Viper and never allocates</td></tr>
+      <tr><td>Input</td><td>USB host</td><td>Gamepad polled once per frame, decoded into a small integer state word</td></tr>
+      <tr><td>Timing</td><td>DMA frame flag</td><td>The main loop spin-waits on a flag the video DMA writes, so drawing never races the scan-out</td></tr>
+    </tbody>
+  </table>
+
+  <div class="col">
+    <h3>The shape of a game</h3>
+    <p>Every game follows the same skeleton. Allocate everything up front — framebuffers, sprite tables, particle pools, sound buffers — then enter a loop that allocates nothing at all. Once the loop is running, the garbage collector has no reason to wake up, and frame times stop jittering.</p>
+<pre><span class="c"># set up once, outside the loop</span>
+fb  = dviFB(width=<span class="n">320</span>, height=<span class="n">240</span>, bpp=<span class="n">2</span>)
+spr = array(<span class="k">'i'</span>, [<span class="n">0</span>] * (MAX_SPRITES * <span class="n">6</span>))   <span class="c"># x, y, dx, dy, frame, flags</span>
+ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class="n">8</span>)                    <span class="c"># packed args for the asm blitter</span>
+
+<span class="k">while</span> running:
+    pad = read_gamepad()          <span class="c"># no allocation</span>
+    update(spr, pad)              <span class="c"># viper, no allocation</span>
+    fb.fill_asm(<span class="n">0</span>)               <span class="c"># waits on the DMA frame flag first</span>
+    draw_sprites(fb, spr, ctl)    <span class="c"># asm_thumb inner loop</span>
+    mixer.service()               <span class="c"># tops up the I2S ping-pong buffer</span>
+</pre>
+    <p class="note">Everything above the loop is allowed to be slow and readable. Everything inside it is not.</p>
+  </div>
+</section>
+
+<!-- ==========================================================
+     SECTION 3 — GAMES
+     ========================================================== -->
+<section class="sec" id="games">
+  <div class="col">
+    <p class="eyebrow">Games</p>
+    <h2>What runs on it</h2>
+    <p>Mostly arcade remakes, because arcade games are honest tests: fixed frame rate, many moving objects, and an audience that notices a dropped frame immediately.</p>
+  </div>
+
+  <div class="games">
+    <div class="game"><b>Arkanoid</b><span>320×240 · RGB565</span></div>
+    <div class="game"><b>Pac-Man</b><span>320×240 · RGB565</span></div>
+    <div class="game"><b>Defender</b><span>320×240 · scrolling</span></div>
+    <div class="game"><b>Scramble</b><span>tilemap · scrolling</span></div>
+    <div class="game"><b>Qix</b><span>320×240 · area fill</span></div>
+    <div class="game"><b>Zaxxon</b><span>axonometric</span></div>
+    <div class="game"><b>Gravitar</b><span>640×480 · vector</span></div>
+    <div class="game"><b>Star Castle</b><span>640×480 · RGB332</span></div>
+    <div class="game"><b>Centipede</b><span>sprite grid</span></div>
+    <div class="game"><b>Missile Command</b><span>trails · explosions</span></div>
+    <div class="game"><b>Battlezone</b><span>wireframe 3D</span></div>
+    <div class="game"><b>Pole Position</b><span>pseudo-3D road</span></div>
+    <div class="game"><b>Roguelike</b><span>tiles · turn-based</span></div>
+    <div class="game"><b>Voxel landscape</b><span>heightmap demo</span></div>
+    <div class="game"><b>Seascape</b><span>wave demo</span></div>
+  </div>
+
+  <div class="col">
+    <p class="note">Each entry links to its source and a short write-up of the one hard problem it posed. <span class="todo">FILL IN</span> — add links once the repos are public.</p>
+  </div>
+</section>
+
+<!-- ==========================================================
+     SECTION 4 — DEEP DIVE
+     ========================================================== -->
+<section class="sec" id="deep-dive">
+  <div class="col">
+    <p class="eyebrow">Deep dive</p>
+    <h2>Where the time actually goes</h2>
+    <p>Three tiers of code do the work, and knowing which tier a function belongs in is most of the performance story.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Tier</th><th>Used for</th><th>Relative cost</th></tr></thead>
+    <tbody>
+      <tr><td>Interpreted Python</td><td>Setup, level loading, menus, anything off the frame path</td><td><span class="todo">FILL IN</span></td></tr>
+      <tr><td>Viper (<code>@micropython.viper</code>)</td><td>Per-object updates, collision, fixed-point math, pointer walks over arrays</td><td><span class="todo">FILL IN</span></td></tr>
+      <tr><td>Thumb-2 (<code>@micropython.asm_thumb</code>)</td><td>Sprite blits, fills, span rendering — the innermost pixel loops</td><td><span class="todo">FILL IN</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="col">
+    <h3>Rules that came out of the measurements</h3>
+    <ul class="tight">
+      <li>The main loop allocates nothing. Pre-allocate flat <code>array</code> objects and index into them; do not build tuples or lists per frame.</li>
+      <li>Pass one packed <code>int32</code> control array into an assembly primitive rather than several arguments — argument marshalling costs more than the work in short calls.</li>
+      <li>Clip once against the screen bounds before entering the loops, then run unsigned-only coordinates inside.</li>
+      <li>Write two pixels at a time with a 32-bit <code>str</code>, using <code>strh</code> only for an odd leading or trailing pixel.</li>
+      <li>Wait on the video DMA's frame flag before clearing, so the clear never overtakes scan-out and tears.</li>
+      <li>Keep the framebuffer in SRAM if it fits. PSRAM works, but the write cost shows up in every fill.</li>
+    </ul>
+
+    <h3>Benchmarks</h3>
+    <p class="note">Measured with <code>time.ticks_us()</code> around each stage, averaged over <span class="todo">N</span> frames on a Fruit Jam at <span class="todo">CLOCK</span>&nbsp;MHz.</p>
+    <table>
+      <thead><tr><th>Operation</th><th>Python</th><th>Viper</th><th>Assembly</th></tr></thead>
+      <tbody>
+        <tr><td>Fill 320×240 framebuffer</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td></tr>
+        <tr><td>Blit 16×16 sprite</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td></tr>
+        <tr><td>Update 64 objects</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td>—</td></tr>
+        <tr><td>Mix 4 audio voices</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Video, in more detail</h3>
+    <p><span class="todo">FILL IN</span> — how HSTX serialises TMDS, how the ping-pong DMA chain is armed, and what happens in the restart IRQ.</p>
+
+    <h3>Audio, in more detail</h3>
+    <p><span class="todo">FILL IN</span> — buffer sizes, sample rate, how many voices before the mixer runs out of frame, and how sample data is stored.</p>
+  </div>
+</section>
+
+<!-- ==========================================================
+     SECTION 5 — BUILD GUIDE
+     ========================================================== -->
+<section class="sec" id="build">
+  <div class="col">
+    <p class="eyebrow">Build guide</p>
+    <h2>Making one</h2>
+    <p>The parts list is short and nothing needs to be soldered.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Part</th><th>Detail</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Adafruit Fruit Jam</td><td>RP2350</td><td>DVI out, USB host, onboard audio codec</td></tr>
+      <tr><td>Monitor</td><td>15-inch, HDMI in</td><td>Anything that accepts <span class="todo">MODE</span> over a DVI-to-HDMI cable</td></tr>
+      <tr><td>Gamepad</td><td>USB</td><td><span class="todo">MODEL</span></td></tr>
+      <tr><td>Cable</td><td>HDMI, USB-C</td><td>Power and video</td></tr>
+    </tbody>
+  </table>
+
+  <div class="col">
+    <div class="step"><div class="step-n">01</div><div class="step-b"><h3>Flash MicroPython</h3><p>Hold BOOTSEL, plug in, drop the <code>.uf2</code> on the drive that appears. <span class="todo">FILL IN</span> — which build, and where to get it.</p></div></div>
+    <div class="step"><div class="step-n">02</div><div class="step-b"><h3>Copy the drivers</h3><p>The DVI framebuffer driver, the audio mixer and the gamepad reader go in the root of the filesystem. <span class="todo">FILL IN</span> — file list.</p></div></div>
+    <div class="step"><div class="step-n">03</div><div class="step-b"><h3>Copy the games</h3><p>Each game is a single <code>.py</code> file in <code>/apps</code>. The launcher finds them automatically.</p></div></div>
+    <div class="step"><div class="step-n">04</div><div class="step-b"><h3>Set the launcher to run at boot</h3><p><span class="todo">FILL IN</span> — the <code>main.py</code> line that starts the menu.</p></div></div>
+    <div class="step"><div class="step-n">05</div><div class="step-b"><h3>Check the display mode</h3><p>If the monitor shows nothing, the mode is wrong before the wiring is. <span class="todo">FILL IN</span> — supported modes and how to change them.</p></div></div>
+  </div>
+</section>
+
+<!-- ==========================================================
+     SECTION 6 — INDEX
+     ========================================================== -->
+<section class="sec" id="index">
+  <div class="col">
+    <p class="eyebrow">Index</p>
+    <h2>Files and references</h2>
+    <p>Everything on the console, and what it is for.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>dviFB.py</td><td>DVI/HSTX framebuffer driver — DMA setup, TMDS output, <code>fill_asm</code></td><td><span class="todo">LINK</span></td></tr>
+      <tr><td>asmgfx.py</td><td>Thumb-2 graphics primitives for RGB565 framebuffers</td><td><span class="todo">LINK</span></td></tr>
+      <tr><td>audio_mixer.py</td><td>Polyphonic I2S mixer, IRQ-driven ping-pong buffers</td><td><span class="todo">LINK</span></td></tr>
+      <tr><td>menu.py</td><td>Launcher — lists <code>/apps/*.py</code> and starts one</td><td><span class="todo">LINK</span></td></tr>
+      <tr><td>/apps/*.py</td><td>The games, one file each</td><td><span class="todo">LINK</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="col">
+    <h3>Further reading</h3>
+    <ul class="tight">
+      <li><span class="todo">FILL IN</span> — RP2350 datasheet, HSTX chapter</li>
+      <li><span class="todo">FILL IN</span> — MicroPython Viper and inline assembler docs</li>
+      <li><span class="todo">FILL IN</span> — Adafruit Fruit Jam product page and pinout</li>
+    </ul>
+  </div>
+
+  <footer>
+    Built and documented by <span class="todo">NAME</span> · Source on <a href="#">GitHub</a> · Corrections welcome
+  </footer>
+</section>
+
+</main>
+</div>
+
+<script>
+/* ---- frame budget playhead: one sweep = one frame, slowed 100x ---- */
+(function(){
+  var bar = document.getElementById('bar');
+  var head = document.getElementById('playhead');
+  if(!bar || !head) return;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var period = 1667; // ms — 16.67ms shown at 1/100 speed
+  var start = null;
+  function step(t){
+    if(start === null) start = t;
+    var p = ((t - start) % period) / period;
+    head.style.transform = 'translateX(' + (p * bar.clientWidth) + 'px)';
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+})();
+
+/* ---- active section in the rail ---- */
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('#nav a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var i = secs.indexOf(e.target);
+      links.forEach(function(a,j){ a.classList.toggle('on', i === j); });
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  secs.forEach(function(s){ if(s) obs.observe(s); });
+})();
+</script>
+</body>
+</html>

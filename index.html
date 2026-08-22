@@ -96,17 +96,21 @@ p{margin:0 0 18px}
 
 .budget{margin:44px 0 0;max-width:860px}
 .budget-head{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+.budget-tracks{position:relative;display:flex;flex-direction:column;gap:8px}
+.track{display:flex;align-items:stretch;gap:12px}
+.track-label{flex:0 0 92px;display:flex;flex-direction:column;justify-content:center;font-family:var(--mono);font-size:10px;letter-spacing:.05em;line-height:1.4;color:var(--ink-2);text-align:right}
+.track-label b{display:block;color:var(--ink);font-size:11px;letter-spacing:.08em}
 .budget-bar{
-  position:relative;display:flex;height:56px;background:var(--panel);
+  position:relative;display:flex;flex:1 1 auto;height:44px;background:var(--panel);
   border:1px solid var(--rule);overflow:hidden;
 }
-.seg{position:relative;display:flex;align-items:flex-end;padding:6px 8px;border-right:1px solid var(--rule);overflow:hidden}
+.seg{position:relative;display:flex;align-items:flex-end;padding:5px 8px;border-right:1px solid var(--rule);overflow:hidden}
 .seg:last-child{border-right:0}
 .seg span{font-family:var(--mono);font-size:10.5px;line-height:1.25;color:var(--ink-2);white-space:nowrap}
 .seg.s-idle{background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(138,143,152,.16) 5px 10px)}
 .seg.s-work{background:rgba(46,74,107,.10)}
 .seg.s-draw{background:rgba(46,74,107,.20)}
-.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--jam-lite);left:0;will-change:transform}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--jam-lite);left:104px;will-change:transform}
 .budget-foot{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--mute);margin-top:9px}
 
 /* ============================================================
@@ -166,6 +170,9 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
   .main{padding:0}
   body{font-size:17px}
   .seg span{display:none}
+  .track-label{flex-basis:64px;font-size:9px}
+  .track-label b{font-size:9.5px}
+  .playhead{left:76px}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -211,13 +218,23 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
       <span>One frame · 16.67 ms</span>
       <span>Shown at 1&#8202;/&#8202;100 speed</span>
     </div>
-    <div class="budget-bar" id="bar" role="img" aria-label="Breakdown of work inside one 16.67 millisecond frame: input, update, clear, draw, present, and idle time waiting for vertical sync.">
-      <div class="seg s-work" style="flex:6"><span>input<br>read</span></div>
-      <div class="seg s-work" style="flex:16"><span>update<br>world</span></div>
-      <div class="seg s-draw" style="flex:14"><span>clear<br>framebuffer</span></div>
-      <div class="seg s-draw" style="flex:34"><span>draw<br>sprites</span></div>
-      <div class="seg s-work" style="flex:8"><span>audio<br>refill</span></div>
-      <div class="seg s-idle" style="flex:22"><span>idle —<br>wait for vsync</span></div>
+    <div class="budget-tracks" id="tracks" role="img" aria-label="Breakdown of one 16.67 millisecond frame across two CPU cores. Core 0 reads input, updates the game, and renders into a back buffer, then briefly waits its turn. Core 1 spends most of the frame idle, waiting for vertical sync, then copies the finished buffer to the screen.">
+      <div class="track">
+        <span class="track-label"><b>CORE 0</b>logic + render</span>
+        <div class="budget-bar" id="bar0">
+          <div class="seg s-work" style="flex:5"><span>input<br>read</span></div>
+          <div class="seg s-work" style="flex:18"><span>update<br>world</span></div>
+          <div class="seg s-draw" style="flex:57"><span>render to<br>back buffer</span></div>
+          <div class="seg s-idle" style="flex:20"><span>wait for<br>core 1</span></div>
+        </div>
+      </div>
+      <div class="track">
+        <span class="track-label"><b>CORE 1</b>present</span>
+        <div class="budget-bar" id="bar1">
+          <div class="seg s-idle" style="flex:72"><span>idle —<br>wait for vsync</span></div>
+          <div class="seg s-draw" style="flex:28"><span>copy to<br>scanout buffer</span></div>
+        </div>
+      </div>
       <div class="playhead" id="playhead"></div>
     </div>
     <div class="budget-foot">
@@ -226,7 +243,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
       <span>16,670 µs</span>
     </div>
   </div>
-  <p class="note" style="margin-top:14px;max-width:66ch">Every game on this console is built to finish its work before the display asks for the next frame. The idle band on the right is the whole design goal — proof there was time to spare.</p>
+  <p class="note" style="margin-top:14px;max-width:66ch">Every game on this console is built to finish its work before the display asks for the next frame. Shown here is the most common of three ways the games split that work across two cores — see <a href="#cores">how the two cores split the frame</a>. Audio refill isn't on either track: it runs from an I2S IRQ, independent of both loops.</p>
 </section>
 
 <!-- ==========================================================
@@ -307,6 +324,45 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
     mixer.service()                <span class="c"># tops up the I2S double buffer</span>
 </pre>
     <p class="note">Everything above the loop is allowed to be slow and readable. Everything inside it is not.</p>
+
+    <h3 id="cores">How the two cores split the frame</h3>
+    <p>All 13 games (plus the in-progress Battlezone) start core 1 with <code>_thread.start_new_thread(core1, ())</code> and run their own loop as core 0. But <em>what</em> each core does splits three distinct ways, not one.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>1 — Render, then present</h3>
+        <p>Core 0 reads input, updates the world, and renders freely into a back buffer (<code>fb2</code>), then flags it ready. Core 1 waits for vsync, then copies <code>fb2 → fb</code> — and skips the copy rather than tear if core 0 hasn't finished.</p>
+      </div>
+      <div class="card">
+        <h3>2 — Present, then render</h3>
+        <p>The vsync wait moves to core 0's draw step instead: it renders into <code>fb2</code> only once <code>display.wait_frame()</code> returns. Core 1 just copies <code>fb2 → fb</code> as fast as it can, sometimes gated by its own ready-flag handshake.</p>
+      </div>
+      <div class="card">
+        <h3>3 — Split logic / draw, no back buffer</h3>
+        <p>Core 0 does input and physics only — never touches a pixel. Core 1 runs <code>while: draw()</code>, and <code>draw()</code> itself waits for vsync and paints straight into the single live framebuffer. No second buffer, no copy.</p>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Game</th><th>Method</th><th>Core 0</th><th>Core 1</th></tr></thead>
+      <tbody>
+        <tr><td>Arkanoid</td><td>1</td><td>Logic + render</td><td>Vsync + copy</td></tr>
+        <tr><td>Defender</td><td>1</td><td>Logic + render</td><td>Vsync + copy</td></tr>
+        <tr><td>Pac-Man</td><td>1</td><td>Logic + render</td><td>Vsync + copy</td></tr>
+        <tr><td>Centipede</td><td>1</td><td>Logic + render</td><td>Vsync + copy</td></tr>
+        <tr><td>Zaxxon</td><td>2</td><td>Logic + vsync-gated render</td><td>Free-running copy</td></tr>
+        <tr><td>Qix</td><td>2</td><td>Logic + vsync-gated render</td><td>Free-running copy</td></tr>
+        <tr><td>Pole Position</td><td>2</td><td>Logic + vsync-gated render</td><td>Copy on handshake flag</td></tr>
+        <tr><td>Scramble</td><td>2</td><td>Logic + vsync-gated render</td><td>Vsync-gated copy (both sides wait)</td></tr>
+        <tr><td>Asteroids</td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+        <tr><td>Lunar Lander</td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+        <tr><td>Missile Command</td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+        <tr><td>Gravitar</td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+        <tr><td>Star Castle</td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+        <tr><td>Battlezone <span class="todo">WIP</span></td><td>3</td><td>Logic only</td><td>Vsync + draw, no copy</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Read directly from each game's <code>core0()</code>/<code>core1()</code> functions. Scramble is the one outlier: its <code>core0</code> draw step <em>and</em> its <code>core1</code> copy step each independently call <code>display.wait_frame()</code> — the two aren't coordinated, which method 2's other three titles avoid.</p>
   </div>
 </section>
 
@@ -477,7 +533,7 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
 <script>
 /* ---- frame budget playhead: one sweep = one frame, slowed 100x ---- */
 (function(){
-  var bar = document.getElementById('bar');
+  var bar = document.getElementById('bar0');
   var head = document.getElementById('playhead');
   if(!bar || !head) return;
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

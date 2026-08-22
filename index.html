@@ -377,24 +377,24 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   </div>
 
   <div class="games">
-    <div class="game"><b>Arkanoid</b><span>320×240 · RGB565</span></div>
-    <div class="game"><b>Asteroids</b><span>640×480 · RGB332</span></div>
-    <div class="game"><b>Centipede</b><span>320×240 · RGB332</span></div>
-    <div class="game"><b>Defender</b><span>320×240 · scrolling</span></div>
-    <div class="game"><b>Gravitar</b><span>640×480 · vector</span></div>
-    <div class="game"><b>Lunar Lander</b><span>640×480 · RGB332</span></div>
-    <div class="game"><b>Missile Command</b><span>640×480 · trails, explosions</span></div>
-    <div class="game"><b>Pac-Man</b><span>320×240 · RGB565</span></div>
-    <div class="game"><b>Pole Position</b><span>320×240 · pseudo-3D road</span></div>
-    <div class="game"><b>Qix</b><span>320×240 · area fill</span></div>
-    <div class="game"><b>Scramble</b><span>tilemap · scrolling</span></div>
-    <div class="game"><b>Star Castle</b><span>640×480 · RGB332</span></div>
-    <div class="game"><b>Zaxxon</b><span>320×240 · axonometric</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/arkanoid7.py">Arkanoid</a></b><span>320×240 · RGB565</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/asteroids_dvi3.py">Asteroids</a></b><span>640×480 · RGB332</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/CentipedeDVI_5.py">Centipede</a></b><span>320×240 · RGB332</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/defender2.py">Defender</a></b><span>320×240 · scrolling</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/gravitar_boot.py">Gravitar</a></b><span>640×480 · vector</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/lunarlander640DVI.py">Lunar Lander</a></b><span>640×480 · RGB332</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/missile_command_640DVI_2.py">Missile Command</a></b><span>640×480 · trails, explosions</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/pacman1.py">Pac-Man</a></b><span>320×240 · RGB565</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/polepositionDVI4.py">Pole Position</a></b><span>320×240 · pseudo-3D road</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/qix5.py">Qix</a></b><span>320×240 · area fill</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/scramble16.py">Scramble</a></b><span>tilemap · scrolling</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/starcastle_boot.py">Star Castle</a></b><span>640×480 · RGB332</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/zaxxon2.py">Zaxxon</a></b><span>320×240 · axonometric</span></div>
   </div>
 
   <div class="col">
-    <p class="note">Thirteen titles, one per launcher slot. Two more sit on the flash outside that rotation: a voxel-landscape flyover is on the board but has no menu slot pointing at it, and a dual-core wireframe renderer in the style of Battlezone is mid-build — <code>main.py</code> refuses to launch it until its top-level script is wrapped in a proper <code>main()</code>.</p>
-    <p class="note"><span class="todo">FILL IN</span> — link each title to its source once the game folders are pushed to this repo, plus a line on the one hard problem it posed.</p>
+    <p class="note">Thirteen titles, one per launcher slot — each name above links to its source. Two more sit on the flash outside that rotation: a <a href="https://github.com/samneggs/FruitJam/blob/main/apps/landscape_dvi2.py">voxel-landscape flyover</a> is on the board but has no menu slot pointing at it, and a dual-core wireframe renderer in the style of Battlezone is mid-build — <code>main.py</code> refuses to launch it until its top-level script is wrapped in a proper <code>main()</code>.</p>
+    <p class="note">Gravitar and Star Castle are two-stage: the linked file is a thin loader that sets up the framebuffer, then hands off to the real game in a subfolder — <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Gravitar">apps/Gravitar/</a> and <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Starcastle">apps/Starcastle/</a>. <span class="todo">FILL IN</span> — a line on the one hard problem each title posed.</p>
   </div>
 </section>
 
@@ -457,6 +457,7 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
 
     <h3>Audio, in more detail</h3>
     <p>Sound goes out over I2S to a TLV320DAC3100 codec. The mixer allocates two interleaved stereo buffers up front — <code>BUF_A</code> and <code>BUF_B</code>, each <code>chunk × 4</code> bytes (256-sample chunks × 2 channels × 16-bit samples = 1,024 bytes) — and alternates between them. Up to 8 voices can play at once; each is a plain PCM <code>bytearray</code> with its own position, volume and loop flag. Refilling a buffer is one Viper method, <code>_fill_into()</code>, that walks every active voice, sums into an accumulator, clamps, and duplicates the result into both stereo channels — a single native pass with no per-voice Python calls and no allocation, safe to run from the I2S write-complete IRQ. Default sample rate is 22,050&nbsp;Hz; the codec itself supports 8,000–192,000&nbsp;Hz.</p>
+    <p><code>Mixer.load()</code> decodes a whole <code>.wav</code> into a PCM <code>bytearray</code> up front, not streamed — and these add up. Arkanoid alone carries roughly 745&nbsp;KB across its sound set (its <code>xlife.wav</code> and <code>warp.wav</code> are each over 80&nbsp;KB), well past what fits in an RP2350's internal SRAM alongside a framebuffer and game state. In practice that means sound data is usually the thing that ends up pushed out into the board's 8&nbsp;MB of PSRAM. That's not a playback problem, unlike the framebuffer case above: at 8 voices × 22,050&nbsp;Hz × 16-bit, the mixer's worst-case read rate is around 350&nbsp;KB/s, under 1% of PSRAM's roughly 37.5&nbsp;MB/s throughput — and those reads are sequential and paced by the I2S DMA, not the 16.67&nbsp;ms frame clock, so PSRAM's higher per-access latency never has anywhere to show up.</p>
   </div>
 </section>
 
@@ -502,16 +503,18 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   <table>
     <thead><tr><th>File</th><th>Purpose</th><th>Source</th></tr></thead>
     <tbody>
-      <tr><td>dvi_rp2_hstx_frame_sync_v2.py</td><td>DVI/HSTX driver — 3-channel DMA chain, TMDS output, <code>wait_frame()</code></td><td class="note">not yet published in this repo</td></tr>
-      <tr><td>gamepadfast.py</td><td>I2C gamepad reader — Seesaw-protocol joystick + buttons over STEMMA QT</td><td class="note">not yet published in this repo</td></tr>
-      <tr><td>TLV320.py</td><td>TLV320DAC3100 codec driver (I2S init, clocking, volume)</td><td class="note">not yet published in this repo</td></tr>
-      <tr><td>audio_mixer.py / audio_mixer2.py</td><td>8-voice I2S mixer, IRQ-driven double buffers, Viper mix pass</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>dvi_rp2_hstx_frame_sync_v2.py</td><td>DVI/HSTX driver — 3-channel DMA chain, TMDS output, <code>wait_frame()</code></td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/dvi_rp2_hstx_frame_sync_v2.py">drivers/</a></td></tr>
+      <tr><td>colors.py</td><td>Color-mode constants and bytes-per-pixel table the DVI driver depends on</td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/colors.py">drivers/</a></td></tr>
+      <tr><td>gamepadfast.py</td><td>I2C gamepad reader — Seesaw-protocol joystick + buttons over STEMMA QT</td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/gamepadfast.py">drivers/</a></td></tr>
+      <tr><td>TLV320.py</td><td>TLV320DAC3100 codec driver (I2S init, clocking, volume)</td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/TLV320.py">drivers/</a></td></tr>
+      <tr><td>audio_mixer.py</td><td>8-voice I2S mixer, IRQ-driven double buffers, Viper mix pass</td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/audio_mixer.py">drivers/</a></td></tr>
+      <tr><td>audio_mixer2.py</td><td>Later revision of the mixer above; some titles use one, some the other</td><td><a href="https://github.com/samneggs/FruitJam/blob/main/drivers/audio_mixer2.py">drivers/</a></td></tr>
       <tr><td>menu.py</td><td>Launcher — lists <code>/apps/*.py</code> and starts one via a boot-marker + reset</td><td class="note">not yet published in this repo</td></tr>
       <tr><td>main.py</td><td>Boot trampoline — reads <code>/boot_app.txt</code>, clears it, runs the named app or falls back to <code>menu</code></td><td class="note">not yet published in this repo</td></tr>
-      <tr><td>/apps/*.py</td><td>The 13 launcher games, one file each</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>/apps/*.py</td><td>The 13 launcher games, plus the hidden landscape demo — one file each</td><td><a href="https://github.com/samneggs/FruitJam/tree/main/apps">apps/</a></td></tr>
     </tbody>
   </table>
-  <p class="note">This repo currently holds only this page. <span class="todo">FILL IN</span> — decide whether the MicroPython source is going in this repo too, and link these rows once it lands.</p>
+  <p class="note">The drivers and every game under <code>/apps</code> are now published above. <code>menu.py</code> and <code>main.py</code> (the launcher and boot trampoline) aren't yet — <span class="todo">FILL IN</span> — push those too if this index should be complete.</p>
 
   <div class="col">
     <h3>Further reading</h3>

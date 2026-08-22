@@ -243,7 +243,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
       <span>16,670 µs</span>
     </div>
   </div>
-  <p class="note" style="margin-top:14px;max-width:66ch">Every game on this console is built to finish its work before the display asks for the next frame. Shown here is the most common of three ways the games split that work across two cores — see <a href="#cores">how the two cores split the frame</a>. Audio refill isn't on either track: it runs from an I2S IRQ, independent of both loops.</p>
+  <p class="note" style="margin-top:14px;max-width:66ch">Every game on this console is built to finish its work before the display asks for the next frame. Shown here is the most common of three ways the games split that work across two cores — see <a href="#cores">how the two cores split the frame</a>. Audio refill isn't on either track as drawn: it runs from an I2S IRQ, and that IRQ fires on core 0 — briefly interrupting whatever core 0's loop is doing rather than running independently of it.</p>
 </section>
 
 <!-- ==========================================================
@@ -277,7 +277,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
 
     <h3>Why it is worth documenting</h3>
     <p>The usual advice is that Python is too slow for real-time graphics on a microcontroller. That is true of Python written the usual way. It stops being true once allocation is pushed out of the main loop, hot pixel work is compiled rather than interpreted, and the frame is treated as a hard budget instead of a hope.</p>
-    <p>The current build backs that up at scale rather than in a single demo: thirteen arcade ports share one launcher and one DVI/audio driver stack, plus a fourteenth — a dual-core wireframe renderer in the style of Battlezone — still mid-build. <span class="todo">FILL IN</span> — which game came first and what convinced you the frame budget would hold.</p>
+    <p>The current build backs that up at scale rather than in a single demo: thirteen arcade ports share one launcher and one DVI/audio driver stack, plus a fourteenth — a dual-core wireframe renderer in the style of Battlezone — still mid-build.</p>
   </div>
 </section>
 
@@ -299,7 +299,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
       <tr><td>Drawing</td><td>Core 0 (or Core 1), Viper / asm</td><td>Sprite blits, fills and line work compiled to native code; clipping resolved once, before the inner loops</td></tr>
       <tr><td>Game logic</td><td>Core 0 + Core 1 via <code>_thread</code></td><td>Nearly every game splits input/update on core 0 from drawing on core 1; the split is per-game, not a framework rule</td></tr>
       <tr><td>Audio</td><td>I2S + DMA</td><td>TLV320DAC3100 codec fed by IRQ-driven double buffers; an 8-voice mixer sums voices in Viper and never allocates</td></tr>
-      <tr><td>Input</td><td>I2C</td><td>Gamepad breakout polled once per frame over I2C (STEMMA QT, address 0x53) — two ADC axes plus a GPIO bulk register decoded into a small integer state word, not a USB HID report</td></tr>
+      <tr><td>Input</td><td>I2C</td><td>Gamepad breakout polled at a fixed interval (typically every 15–30&nbsp;ms, not tied to the frame boundary) over I2C — STEMMA QT, address 0x53. Two ADC axes plus a GPIO bulk register decoded into a small integer state word, not a USB HID report. The driver itself is minimal and lightweight, with no dynamic allocation</td></tr>
       <tr><td>Timing</td><td>DMA frame flag</td><td>The main loop spin-waits on <code>display.wait_frame()</code>, a flag the frame-boundary IRQ writes, so drawing never races the scan-out</td></tr>
     </tbody>
   </table>
@@ -381,20 +381,20 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/asteroids_dvi3.py">Asteroids</a></b><span>640×480 · RGB332</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/CentipedeDVI_5.py">Centipede</a></b><span>320×240 · RGB332</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/defender2.py">Defender</a></b><span>320×240 · scrolling</span></div>
-    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/gravitar_boot.py">Gravitar</a></b><span>640×480 · vector</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/Gravitar/gravitar_main3.py">Gravitar</a></b><span>640×480 · vector</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/lunarlander640DVI.py">Lunar Lander</a></b><span>640×480 · RGB332</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/missile_command_640DVI_2.py">Missile Command</a></b><span>640×480 · trails, explosions</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/pacman1.py">Pac-Man</a></b><span>320×240 · RGB565</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/polepositionDVI4.py">Pole Position</a></b><span>320×240 · pseudo-3D road</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/qix5.py">Qix</a></b><span>320×240 · area fill</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/scramble16.py">Scramble</a></b><span>tilemap · scrolling</span></div>
-    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/starcastle_boot.py">Star Castle</a></b><span>640×480 · RGB332</span></div>
+    <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/Starcastle/starcastle.py">Star Castle</a></b><span>640×480 · RGB332</span></div>
     <div class="game"><b><a href="https://github.com/samneggs/FruitJam/blob/main/apps/zaxxon2.py">Zaxxon</a></b><span>320×240 · axonometric</span></div>
   </div>
 
   <div class="col">
     <p class="note">Thirteen titles, one per launcher slot — each name above links to its source. Two more sit on the flash outside that rotation: a <a href="https://github.com/samneggs/FruitJam/blob/main/apps/landscape_dvi2.py">voxel-landscape flyover</a> is on the board but has no menu slot pointing at it, and a dual-core wireframe renderer in the style of Battlezone is mid-build — <code>main.py</code> refuses to launch it until its top-level script is wrapped in a proper <code>main()</code>.</p>
-    <p class="note">Gravitar and Star Castle are two-stage: the linked file is a thin loader that sets up the framebuffer, then hands off to the real game in a subfolder — <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Gravitar">apps/Gravitar/</a> and <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Starcastle">apps/Starcastle/</a>. <span class="todo">FILL IN</span> — a line on the one hard problem each title posed.</p>
+    <p class="note">Gravitar and Star Castle are two-stage — the links above go straight to the real game, in <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Gravitar">apps/Gravitar/</a> and <a href="https://github.com/samneggs/FruitJam/tree/main/apps/Starcastle">apps/Starcastle/</a>. What's actually in <code>/apps</code> on the launcher (<code>gravitar_boot.py</code>, <code>starcastle_boot.py</code>) is a thin loader that sets up the framebuffer first, then imports the module linked here.</p>
   </div>
 </section>
 
@@ -429,7 +429,7 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
     </ul>
 
     <h3>How much of each game is native code</h3>
-    <p class="note">No per-stage timing has been logged yet — <code>time.ticks_us()</code> instrumentation is still <span class="todo">FILL IN</span>. What's countable today is how much of each game's own code has already been pushed down a tier, by function count.</p>
+    <p class="note">No per-stage timing has been logged yet — <code>time.ticks_us()</code> instrumentation hasn't been added. What's countable today is how much of each game's own code has already been pushed down a tier, by function count.</p>
     <table>
       <thead><tr><th>Game</th><th>Lines</th><th>Viper functions</th><th>Thumb-2 functions</th></tr></thead>
       <tbody>
@@ -482,11 +482,22 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   </table>
 
   <div class="col">
-    <div class="step"><div class="step-n">01</div><div class="step-b"><h3>Flash MicroPython</h3><p>Hold BOOTSEL, plug in, drop the <code>.uf2</code> on the drive that appears. Needs an RP2350 build with <code>rp2.DMA</code>, the Viper emitter and the inline Thumb-2 assembler enabled — the standard firmware from <a href="https://micropython.org/download/">micropython.org/download</a> covers all three; grab the build for this board's 16 MB flash / 8 MB PSRAM.</p></div></div>
+    <div class="step"><div class="step-n">01</div><div class="step-b"><h3>Flash MicroPython</h3><p>Hold BOOTSEL, plug in, drop the <code>.uf2</code> on the drive that appears. This isn't the stock firmware from <a href="https://micropython.org/download/">micropython.org/download</a> — it's a custom build, MicroPython v1.27.0-dirty (built 2025-12-20) targeting the SparkFun IoT RedBoard RP2350. That target is what gives this build PSRAM support and access to a pre-release HSTX class; the DVI driver used throughout (<code>dvi_rp2_hstx_frame_sync_v2.py</code>) is SparkFun's own driver, lightly modified for this project.</p></div></div>
     <div class="step"><div class="step-n">02</div><div class="step-b"><h3>Copy the drivers</h3><p>Into <code>/lib</code>: <code>dvi_rp2_hstx_frame_sync_v2.py</code> (video), <code>colors.py</code>, <code>gamepadfast.py</code> (I2C gamepad), <code>audio_mixer.py</code> or <code>audio_mixer2.py</code>, <code>draw_numberdvi.py</code> (HUD digits). Into the root: <code>TLV320.py</code> (the audio codec driver — must keep that exact module name; the mixer imports it by name), <code>menu.py</code>, <code>main.py</code>.</p></div></div>
     <div class="step"><div class="step-n">03</div><div class="step-b"><h3>Copy the games</h3><p>Each game is a single <code>.py</code> file in <code>/apps</code>. The launcher finds them automatically.</p></div></div>
     <div class="step"><div class="step-n">04</div><div class="step-b"><h3>Set the launcher to run at boot</h3><p>Nothing to edit — <code>main.py</code> already defaults to <code>menu.py</code> whenever <code>/boot_app.txt</code> doesn't exist. That marker file only appears once you've launched a game from the menu (which writes it, then resets); delete it if you ever need to force a boot back to the menu.</p></div></div>
-    <div class="step"><div class="step-n">05</div><div class="step-b"><h3>Check the display mode</h3><p>There's only one mode — the driver hardcodes 640×480 timing, so a blank screen isn't a resolution mismatch. Check the DVI-to-HDMI cable and EDID handshake first, then the two direct register pokes near the top of every game file (<code>machine.mem32[0x40010058]</code> and <code>...054</code>, which set the HSTX serial clock divider) — those two lines have to run before <code>display.begin()</code>.</p></div></div>
+    <div class="step"><div class="step-n">05</div><div class="step-b"><h3>Check the display mode</h3><p>There's only one mode — the driver hardcodes 640×480 timing, so a blank screen isn't a resolution mismatch. Check the DVI-to-HDMI cable and EDID handshake first, then the two direct register pokes near the top of every game file (<code>machine.mem32[0x40010058]</code> and <code>...054</code>, which set the HSTX serial clock divider) — those two lines have to run before <code>display.begin()</code>.</p>
+      <table>
+        <thead><tr><th>Stage</th><th>Rate</th></tr></thead>
+        <tbody>
+          <tr><td>clk_sys (HSTX aux div = 2)</td><td>246 MHz</td></tr>
+          <tr><td>clk_hstx (DDR → 2 bits per cycle)</td><td>123 MHz</td></tr>
+          <tr><td>TMDS serial bits/lane (10 bits/pixel)</td><td>246 Mbit/s</td></tr>
+          <tr><td>Pixel clock (TMDS clock lane)</td><td>24.6 MHz</td></tr>
+        </tbody>
+      </table>
+      <p class="note">The overclock to <code>machine.freq(246_000_000)</code> at the top of every game file isn't just for headroom in game logic — it's the clock the whole HSTX chain above is derived from.</p>
+    </div></div>
   </div>
 </section>
 
@@ -514,7 +525,7 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
       <tr><td>/apps/*.py</td><td>The 13 launcher games, plus the hidden landscape demo — one file each</td><td><a href="https://github.com/samneggs/FruitJam/tree/main/apps">apps/</a></td></tr>
     </tbody>
   </table>
-  <p class="note">The drivers and every game under <code>/apps</code> are now published above. <code>menu.py</code> and <code>main.py</code> (the launcher and boot trampoline) aren't yet — <span class="todo">FILL IN</span> — push those too if this index should be complete.</p>
+  <p class="note">The drivers and every game under <code>/apps</code> are now published above. <code>menu.py</code> and <code>main.py</code> (the launcher and boot trampoline) aren't yet.</p>
 
   <div class="col">
     <h3>Further reading</h3>

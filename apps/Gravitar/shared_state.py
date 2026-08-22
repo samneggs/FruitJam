@@ -1,0 +1,1 @@
+# shared state between loader and gravitar_main

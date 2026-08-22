@@ -193,7 +193,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
     <a href="#build">Build guide</a>
     <a href="#index">Index</a>
   </nav>
-  <div class="rail-foot">RP2350 · MicroPython<br>Last updated <span class="todo">DATE</span></div>
+  <div class="rail-foot">RP2350 · MicroPython<br>Last updated Aug 21, 2026</div>
 </aside>
 
 <main class="main">
@@ -222,7 +222,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
     </div>
     <div class="budget-foot">
       <span>0 µs</span>
-      <span>Headroom left over: <span class="todo">FILL IN</span></span>
+      <span>Headroom left over: not instrumented yet — see Deep dive</span>
       <span>16,670 µs</span>
     </div>
   </div>
@@ -236,8 +236,8 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
   <div class="col">
     <p class="eyebrow">System story</p>
     <h2>What this thing is</h2>
-    <p>It is a small desktop console. A Fruit Jam board sits next to a 15-inch monitor and drives it directly over DVI. A USB gamepad plugs into the board. Power is a single USB-C cable. There is no case fan, no storage beyond onboard flash, and nothing between the game code and the hardware.</p>
-    <p>Games are written in MicroPython and copied onto the board as <code>.py</code> files. A launcher lists whatever is in <code>/apps</code> and starts the one you pick. Turning it on takes about a second.</p>
+    <p>It is a small desktop console. A Fruit Jam board sits next to a 15-inch monitor and drives it directly over DVI. A gamepad breakout plugs into the STEMMA QT header and talks I2C, not USB. Power is a single USB-C cable. There is no case fan, no storage beyond onboard flash, and nothing between the game code and the hardware.</p>
+    <p>Games are written in MicroPython and copied onto the board as <code>.py</code> files. A launcher (<code>menu.py</code>) lists whatever is in <code>/apps</code> and starts the one you pick. Turning it on takes about a second.</p>
 
     <div class="grid2">
       <div class="card">
@@ -260,7 +260,7 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
 
     <h3>Why it is worth documenting</h3>
     <p>The usual advice is that Python is too slow for real-time graphics on a microcontroller. That is true of Python written the usual way. It stops being true once allocation is pushed out of the main loop, hot pixel work is compiled rather than interpreted, and the frame is treated as a hard budget instead of a hope.</p>
-    <p><span class="todo">FILL IN</span> — a paragraph on how the project started and what the first working demo was.</p>
+    <p>The current build backs that up at scale rather than in a single demo: thirteen arcade ports share one launcher and one DVI/audio driver stack, plus a fourteenth — a dual-core wireframe renderer in the style of Battlezone — still mid-build. <span class="todo">FILL IN</span> — which game came first and what convinced you the frame budget would hold.</p>
   </div>
 </section>
 
@@ -277,13 +277,13 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
   <table>
     <thead><tr><th>Subsystem</th><th>Handled by</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Video out</td><td>HSTX + DMA</td><td>TMDS-encoded DVI driven straight from a framebuffer in RAM; ping-pong DMA with an IRQ restart, no CPU in the pixel path</td></tr>
-      <tr><td>Framebuffer</td><td>SRAM (or PSRAM)</td><td>320×240 RGB565 for detailed games, 640×480 RGB332 for vector-style ones; placement matters, PSRAM is slower to write than SRAM</td></tr>
-      <tr><td>Drawing</td><td>Core 0, Viper / asm</td><td>Sprite blits, fills and line work compiled to native code; clipping resolved once, before the inner loops</td></tr>
-      <tr><td>Game logic</td><td>Core 0 or Core 1</td><td>Some games split logic and rendering across the two cores; the split is per-game, not a framework rule</td></tr>
-      <tr><td>Audio</td><td>I2S + DMA</td><td>TLV320DAC3100 fed by IRQ-driven ping-pong buffers; the mixer sums voices in Viper and never allocates</td></tr>
-      <tr><td>Input</td><td>USB host</td><td>Gamepad polled once per frame, decoded into a small integer state word</td></tr>
-      <tr><td>Timing</td><td>DMA frame flag</td><td>The main loop spin-waits on a flag the video DMA writes, so drawing never races the scan-out</td></tr>
+      <tr><td>Video out</td><td>HSTX + 3× DMA</td><td>TMDS-encoded DVI at a fixed 640×480; a dispatcher channel re-arms an executer channel through a wrapping ring buffer, chaining HSTX commands then pixel data with no CPU in the pixel path. A hard IRQ on the executer marks the frame boundary</td></tr>
+      <tr><td>Framebuffer</td><td>SRAM</td><td>320×240 RGB565 or RGB332 for detailed games, 640×480 RGB332 for vector-style ones; the driver line/pixel-doubles anything smaller than 640×480 up to full screen. Every game in this build keeps its buffer in internal SRAM — the driver's optional PSRAM streaming path exists but isn't exercised yet</td></tr>
+      <tr><td>Drawing</td><td>Core 0 (or Core 1), Viper / asm</td><td>Sprite blits, fills and line work compiled to native code; clipping resolved once, before the inner loops</td></tr>
+      <tr><td>Game logic</td><td>Core 0 + Core 1 via <code>_thread</code></td><td>Nearly every game splits input/update on core 0 from drawing on core 1; the split is per-game, not a framework rule</td></tr>
+      <tr><td>Audio</td><td>I2S + DMA</td><td>TLV320DAC3100 codec fed by IRQ-driven double buffers; an 8-voice mixer sums voices in Viper and never allocates</td></tr>
+      <tr><td>Input</td><td>I2C</td><td>Gamepad breakout polled once per frame over I2C (STEMMA QT, address 0x53) — two ADC axes plus a GPIO bulk register decoded into a small integer state word, not a USB HID report</td></tr>
+      <tr><td>Timing</td><td>DMA frame flag</td><td>The main loop spin-waits on <code>display.wait_frame()</code>, a flag the frame-boundary IRQ writes, so drawing never races the scan-out</td></tr>
     </tbody>
   </table>
 
@@ -291,16 +291,20 @@ footer{border-top:1px solid var(--rule);padding:34px 0 60px;font-family:var(--mo
     <h3>The shape of a game</h3>
     <p>Every game follows the same skeleton. Allocate everything up front — framebuffers, sprite tables, particle pools, sound buffers — then enter a loop that allocates nothing at all. Once the loop is running, the garbage collector has no reason to wake up, and frame times stop jittering.</p>
 <pre><span class="c"># set up once, outside the loop</span>
-fb  = dviFB(width=<span class="n">320</span>, height=<span class="n">240</span>, bpp=<span class="n">2</span>)
+fb = bytearray(SCREEN_W * SCREEN_H * <span class="n">2</span>)
+display = DVI_RP2_HSTX()
+display.begin(fb, rv_colors.COLOR_MODE_BGR565, height=SCREEN_H, width=SCREEN_W, bytes_per_pixel=<span class="n">2</span>)
+gamepad = Gamepad()                                     <span class="c"># I2C breakout, not USB</span>
 spr = array(<span class="k">'i'</span>, [<span class="n">0</span>] * (MAX_SPRITES * <span class="n">6</span>))   <span class="c"># x, y, dx, dy, frame, flags</span>
 ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class="n">8</span>)                    <span class="c"># packed args for the asm blitter</span>
 
 <span class="k">while</span> running:
-    pad = read_gamepad()          <span class="c"># no allocation</span>
-    update(spr, pad)              <span class="c"># viper, no allocation</span>
-    fb.fill_asm(<span class="n">0</span>)               <span class="c"># waits on the DMA frame flag first</span>
-    draw_sprites(fb, spr, ctl)    <span class="c"># asm_thumb inner loop</span>
-    mixer.service()               <span class="c"># tops up the I2S ping-pong buffer</span>
+    gamepad.read()                 <span class="c"># one I2C transaction, no allocation</span>
+    update(spr, gamepad)           <span class="c"># viper, no allocation</span>
+    display.wait_frame()           <span class="c"># spin on the frame-boundary flag</span>
+    fill_asm(fb, <span class="n">0</span>)                 <span class="c"># asm_thumb clear</span>
+    draw_sprites(fb, spr, ctl)     <span class="c"># asm_thumb inner loop</span>
+    mixer.service()                <span class="c"># tops up the I2S double buffer</span>
 </pre>
     <p class="note">Everything above the loop is allowed to be slow and readable. Everything inside it is not.</p>
   </div>
@@ -318,24 +322,23 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
 
   <div class="games">
     <div class="game"><b>Arkanoid</b><span>320×240 · RGB565</span></div>
-    <div class="game"><b>Pac-Man</b><span>320×240 · RGB565</span></div>
+    <div class="game"><b>Asteroids</b><span>640×480 · RGB332</span></div>
+    <div class="game"><b>Centipede</b><span>320×240 · RGB332</span></div>
     <div class="game"><b>Defender</b><span>320×240 · scrolling</span></div>
-    <div class="game"><b>Scramble</b><span>tilemap · scrolling</span></div>
-    <div class="game"><b>Qix</b><span>320×240 · area fill</span></div>
-    <div class="game"><b>Zaxxon</b><span>axonometric</span></div>
     <div class="game"><b>Gravitar</b><span>640×480 · vector</span></div>
+    <div class="game"><b>Lunar Lander</b><span>640×480 · RGB332</span></div>
+    <div class="game"><b>Missile Command</b><span>640×480 · trails, explosions</span></div>
+    <div class="game"><b>Pac-Man</b><span>320×240 · RGB565</span></div>
+    <div class="game"><b>Pole Position</b><span>320×240 · pseudo-3D road</span></div>
+    <div class="game"><b>Qix</b><span>320×240 · area fill</span></div>
+    <div class="game"><b>Scramble</b><span>tilemap · scrolling</span></div>
     <div class="game"><b>Star Castle</b><span>640×480 · RGB332</span></div>
-    <div class="game"><b>Centipede</b><span>sprite grid</span></div>
-    <div class="game"><b>Missile Command</b><span>trails · explosions</span></div>
-    <div class="game"><b>Battlezone</b><span>wireframe 3D</span></div>
-    <div class="game"><b>Pole Position</b><span>pseudo-3D road</span></div>
-    <div class="game"><b>Roguelike</b><span>tiles · turn-based</span></div>
-    <div class="game"><b>Voxel landscape</b><span>heightmap demo</span></div>
-    <div class="game"><b>Seascape</b><span>wave demo</span></div>
+    <div class="game"><b>Zaxxon</b><span>320×240 · axonometric</span></div>
   </div>
 
   <div class="col">
-    <p class="note">Each entry links to its source and a short write-up of the one hard problem it posed. <span class="todo">FILL IN</span> — add links once the repos are public.</p>
+    <p class="note">Thirteen titles, one per launcher slot. Two more sit on the flash outside that rotation: a voxel-landscape flyover is on the board but has no menu slot pointing at it, and a dual-core wireframe renderer in the style of Battlezone is mid-build — <code>main.py</code> refuses to launch it until its top-level script is wrapped in a proper <code>main()</code>.</p>
+    <p class="note"><span class="todo">FILL IN</span> — link each title to its source once the game folders are pushed to this repo, plus a line on the one hard problem it posed.</p>
   </div>
 </section>
 
@@ -352,9 +355,9 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   <table>
     <thead><tr><th>Tier</th><th>Used for</th><th>Relative cost</th></tr></thead>
     <tbody>
-      <tr><td>Interpreted Python</td><td>Setup, level loading, menus, anything off the frame path</td><td><span class="todo">FILL IN</span></td></tr>
-      <tr><td>Viper (<code>@micropython.viper</code>)</td><td>Per-object updates, collision, fixed-point math, pointer walks over arrays</td><td><span class="todo">FILL IN</span></td></tr>
-      <tr><td>Thumb-2 (<code>@micropython.asm_thumb</code>)</td><td>Sprite blits, fills, span rendering — the innermost pixel loops</td><td><span class="todo">FILL IN</span></td></tr>
+      <tr><td>Interpreted Python</td><td>Setup, level loading, menus, anything off the frame path</td><td>Baseline — bytecode dispatch and boxed objects on every operation; fine once it never runs inside the loop</td></tr>
+      <tr><td>Viper (<code>@micropython.viper</code>)</td><td>Per-object updates, collision, fixed-point math, pointer walks over arrays</td><td>Faster on integer/array work — native machine ints and direct <code>ptr8</code>/<code>ptr16</code>/<code>ptr32</code> access, no boxing or bytecode dispatch</td></tr>
+      <tr><td>Thumb-2 (<code>@micropython.asm_thumb</code>)</td><td>Sprite blits, fills, span rendering — the innermost pixel loops</td><td>Fastest — hand-scheduled machine code, no interpreter or type-checking overhead at all</td></tr>
     </tbody>
   </table>
 
@@ -369,23 +372,35 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
       <li>Keep the framebuffer in SRAM if it fits. PSRAM works, but the write cost shows up in every fill.</li>
     </ul>
 
-    <h3>Benchmarks</h3>
-    <p class="note">Measured with <code>time.ticks_us()</code> around each stage, averaged over <span class="todo">N</span> frames on a Fruit Jam at <span class="todo">CLOCK</span>&nbsp;MHz.</p>
+    <h3>How much of each game is native code</h3>
+    <p class="note">No per-stage timing has been logged yet — <code>time.ticks_us()</code> instrumentation is still <span class="todo">FILL IN</span>. What's countable today is how much of each game's own code has already been pushed down a tier, by function count.</p>
     <table>
-      <thead><tr><th>Operation</th><th>Python</th><th>Viper</th><th>Assembly</th></tr></thead>
+      <thead><tr><th>Game</th><th>Lines</th><th>Viper functions</th><th>Thumb-2 functions</th></tr></thead>
       <tbody>
-        <tr><td>Fill 320×240 framebuffer</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td></tr>
-        <tr><td>Blit 16×16 sprite</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td></tr>
-        <tr><td>Update 64 objects</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td>—</td></tr>
-        <tr><td>Mix 4 audio voices</td><td><span class="todo">µs</span></td><td><span class="todo">µs</span></td><td>—</td></tr>
+        <tr><td>Defender</td><td>1,594</td><td>31</td><td>3</td></tr>
+        <tr><td>Scramble</td><td>1,348</td><td>23</td><td>3</td></tr>
+        <tr><td>Pac-Man</td><td>1,531</td><td>22</td><td>2</td></tr>
+        <tr><td>Gravitar</td><td>1,493</td><td>20</td><td>1</td></tr>
+        <tr><td>Star Castle</td><td>1,017</td><td>20</td><td>1</td></tr>
+        <tr><td>Qix</td><td>908</td><td>17</td><td>3</td></tr>
+        <tr><td>Centipede</td><td>971</td><td>16</td><td>2</td></tr>
+        <tr><td>Asteroids</td><td>853</td><td>14</td><td>4</td></tr>
+        <tr><td>Pole Position</td><td>983</td><td>11</td><td>2</td></tr>
+        <tr><td>Arkanoid</td><td>1,443</td><td>9</td><td>2</td></tr>
+        <tr><td>Lunar Lander</td><td>925</td><td>9</td><td>1</td></tr>
+        <tr><td>Missile Command</td><td>861</td><td>8</td><td>1</td></tr>
+        <tr><td>Zaxxon</td><td>361</td><td>6</td><td>2</td></tr>
+        <tr><td>Battlezone <span class="todo">WIP</span></td><td>1,978</td><td>20</td><td>5</td></tr>
       </tbody>
     </table>
+    <p class="note">Counted directly from each game's source (<code>grep -c '@micropython.viper'</code> / <code>'@micropython.asm_thumb'</code>). Defender carries the most Viper functions of any title — its scrolling terrain and enemy-wave logic is almost entirely off the interpreter.</p>
 
     <h3>Video, in more detail</h3>
-    <p><span class="todo">FILL IN</span> — how HSTX serialises TMDS, how the ping-pong DMA chain is armed, and what happens in the restart IRQ.</p>
+    <p>The HSTX peripheral pulls pixel data from three chained DMA channels rather than a single ping-pong pair. A <em>dispatcher</em> channel feeds four-register control blocks into a 16-byte ring buffer that continuously re-arms an <em>executer</em> channel; the executer alternates between sending HSTX timing commands and a row of framebuffer pixels to the HSTX FIFO, chaining back to the dispatcher after each. (A third <em>streamer</em> channel exists for framebuffers that live in PSRAM, pulling one scanline at a time through the XIP interface — none of this build's games use it.) Once a frame's worth of control blocks has been consumed, a nested "restart frame" block re-triggers the dispatcher and fires a hard IRQ that sets a one-word frame-boundary flag. Games never touch DMA registers directly; they just call <code>display.wait_frame()</code>, which spins on that flag.</p>
+    <p>Video timing is fixed at 640×480 (16/96/48 front-porch/sync/back-porch horizontally, 10/2/33 vertically — standard 640×480 timing, ~60&nbsp;Hz) — the driver only supports that one mode. Games with a smaller framebuffer, like the 320×240 titles, don't get their own timing; the driver pixel- and line-doubles their buffer up to fill the full 640×480 output.</p>
 
     <h3>Audio, in more detail</h3>
-    <p><span class="todo">FILL IN</span> — buffer sizes, sample rate, how many voices before the mixer runs out of frame, and how sample data is stored.</p>
+    <p>Sound goes out over I2S to a TLV320DAC3100 codec. The mixer allocates two interleaved stereo buffers up front — <code>BUF_A</code> and <code>BUF_B</code>, each <code>chunk × 4</code> bytes (256-sample chunks × 2 channels × 16-bit samples = 1,024 bytes) — and alternates between them. Up to 8 voices can play at once; each is a plain PCM <code>bytearray</code> with its own position, volume and loop flag. Refilling a buffer is one Viper method, <code>_fill_into()</code>, that walks every active voice, sums into an accumulator, clamps, and duplicates the result into both stereo channels — a single native pass with no per-voice Python calls and no allocation, safe to run from the I2S write-complete IRQ. Default sample rate is 22,050&nbsp;Hz; the codec itself supports 8,000–192,000&nbsp;Hz.</p>
   </div>
 </section>
 
@@ -402,19 +417,19 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   <table>
     <thead><tr><th>Part</th><th>Detail</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Adafruit Fruit Jam</td><td>RP2350</td><td>DVI out, USB host, onboard audio codec</td></tr>
-      <tr><td>Monitor</td><td>15-inch, HDMI in</td><td>Anything that accepts <span class="todo">MODE</span> over a DVI-to-HDMI cable</td></tr>
-      <tr><td>Gamepad</td><td>USB</td><td><span class="todo">MODEL</span></td></tr>
+      <tr><td>Adafruit Fruit Jam</td><td>RP2350B, 16 MB flash + 8 MB PSRAM</td><td>DVI out, 2× USB host, onboard TLV320DAC3100 audio codec</td></tr>
+      <tr><td>Monitor</td><td>15-inch, HDMI in</td><td>Anything that accepts 640×480 over a DVI-to-HDMI cable — that's the driver's only supported timing, regardless of a game's internal resolution</td></tr>
+      <tr><td>Gamepad</td><td>I2C, STEMMA QT</td><td>A joystick + button breakout speaking the Seesaw register protocol (STATUS/GPIO/ADC), fixed at address 0x53 — not a USB controller</td></tr>
       <tr><td>Cable</td><td>HDMI, USB-C</td><td>Power and video</td></tr>
     </tbody>
   </table>
 
   <div class="col">
-    <div class="step"><div class="step-n">01</div><div class="step-b"><h3>Flash MicroPython</h3><p>Hold BOOTSEL, plug in, drop the <code>.uf2</code> on the drive that appears. <span class="todo">FILL IN</span> — which build, and where to get it.</p></div></div>
-    <div class="step"><div class="step-n">02</div><div class="step-b"><h3>Copy the drivers</h3><p>The DVI framebuffer driver, the audio mixer and the gamepad reader go in the root of the filesystem. <span class="todo">FILL IN</span> — file list.</p></div></div>
+    <div class="step"><div class="step-n">01</div><div class="step-b"><h3>Flash MicroPython</h3><p>Hold BOOTSEL, plug in, drop the <code>.uf2</code> on the drive that appears. Needs an RP2350 build with <code>rp2.DMA</code>, the Viper emitter and the inline Thumb-2 assembler enabled — the standard firmware from <a href="https://micropython.org/download/">micropython.org/download</a> covers all three; grab the build for this board's 16 MB flash / 8 MB PSRAM.</p></div></div>
+    <div class="step"><div class="step-n">02</div><div class="step-b"><h3>Copy the drivers</h3><p>Into <code>/lib</code>: <code>dvi_rp2_hstx_frame_sync_v2.py</code> (video), <code>colors.py</code>, <code>gamepadfast.py</code> (I2C gamepad), <code>audio_mixer.py</code> or <code>audio_mixer2.py</code>, <code>draw_numberdvi.py</code> (HUD digits). Into the root: <code>TLV320.py</code> (the audio codec driver — must keep that exact module name; the mixer imports it by name), <code>menu.py</code>, <code>main.py</code>.</p></div></div>
     <div class="step"><div class="step-n">03</div><div class="step-b"><h3>Copy the games</h3><p>Each game is a single <code>.py</code> file in <code>/apps</code>. The launcher finds them automatically.</p></div></div>
-    <div class="step"><div class="step-n">04</div><div class="step-b"><h3>Set the launcher to run at boot</h3><p><span class="todo">FILL IN</span> — the <code>main.py</code> line that starts the menu.</p></div></div>
-    <div class="step"><div class="step-n">05</div><div class="step-b"><h3>Check the display mode</h3><p>If the monitor shows nothing, the mode is wrong before the wiring is. <span class="todo">FILL IN</span> — supported modes and how to change them.</p></div></div>
+    <div class="step"><div class="step-n">04</div><div class="step-b"><h3>Set the launcher to run at boot</h3><p>Nothing to edit — <code>main.py</code> already defaults to <code>menu.py</code> whenever <code>/boot_app.txt</code> doesn't exist. That marker file only appears once you've launched a game from the menu (which writes it, then resets); delete it if you ever need to force a boot back to the menu.</p></div></div>
+    <div class="step"><div class="step-n">05</div><div class="step-b"><h3>Check the display mode</h3><p>There's only one mode — the driver hardcodes 640×480 timing, so a blank screen isn't a resolution mismatch. Check the DVI-to-HDMI cable and EDID handshake first, then the two direct register pokes near the top of every game file (<code>machine.mem32[0x40010058]</code> and <code>...054</code>, which set the HSTX serial clock divider) — those two lines have to run before <code>display.begin()</code>.</p></div></div>
   </div>
 </section>
 
@@ -431,25 +446,28 @@ ctl = array(<span class="k">'i'</span>, [<span class="n">0</span>] * <span class
   <table>
     <thead><tr><th>File</th><th>Purpose</th><th>Source</th></tr></thead>
     <tbody>
-      <tr><td>dviFB.py</td><td>DVI/HSTX framebuffer driver — DMA setup, TMDS output, <code>fill_asm</code></td><td><span class="todo">LINK</span></td></tr>
-      <tr><td>asmgfx.py</td><td>Thumb-2 graphics primitives for RGB565 framebuffers</td><td><span class="todo">LINK</span></td></tr>
-      <tr><td>audio_mixer.py</td><td>Polyphonic I2S mixer, IRQ-driven ping-pong buffers</td><td><span class="todo">LINK</span></td></tr>
-      <tr><td>menu.py</td><td>Launcher — lists <code>/apps/*.py</code> and starts one</td><td><span class="todo">LINK</span></td></tr>
-      <tr><td>/apps/*.py</td><td>The games, one file each</td><td><span class="todo">LINK</span></td></tr>
+      <tr><td>dvi_rp2_hstx_frame_sync_v2.py</td><td>DVI/HSTX driver — 3-channel DMA chain, TMDS output, <code>wait_frame()</code></td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>gamepadfast.py</td><td>I2C gamepad reader — Seesaw-protocol joystick + buttons over STEMMA QT</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>TLV320.py</td><td>TLV320DAC3100 codec driver (I2S init, clocking, volume)</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>audio_mixer.py / audio_mixer2.py</td><td>8-voice I2S mixer, IRQ-driven double buffers, Viper mix pass</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>menu.py</td><td>Launcher — lists <code>/apps/*.py</code> and starts one via a boot-marker + reset</td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>main.py</td><td>Boot trampoline — reads <code>/boot_app.txt</code>, clears it, runs the named app or falls back to <code>menu</code></td><td class="note">not yet published in this repo</td></tr>
+      <tr><td>/apps/*.py</td><td>The 13 launcher games, one file each</td><td class="note">not yet published in this repo</td></tr>
     </tbody>
   </table>
+  <p class="note">This repo currently holds only this page. <span class="todo">FILL IN</span> — decide whether the MicroPython source is going in this repo too, and link these rows once it lands.</p>
 
   <div class="col">
     <h3>Further reading</h3>
     <ul class="tight">
-      <li><span class="todo">FILL IN</span> — RP2350 datasheet, HSTX chapter</li>
-      <li><span class="todo">FILL IN</span> — MicroPython Viper and inline assembler docs</li>
-      <li><span class="todo">FILL IN</span> — Adafruit Fruit Jam product page and pinout</li>
+      <li><a href="https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf">RP2350 datasheet</a> — HSTX chapter</li>
+      <li><a href="https://docs.micropython.org/en/latest/reference/speed_python.html">MicroPython speed guide</a> — Viper and the inline Thumb-2 assembler</li>
+      <li><a href="https://www.adafruit.com/product/6200">Adafruit Fruit Jam product page</a> and <a href="https://learn.adafruit.com/adafruit-fruit-jam/overview">learning-system pinout guide</a></li>
     </ul>
   </div>
 
   <footer>
-    Built and documented by <span class="todo">NAME</span> · Source on <a href="#">GitHub</a> · Corrections welcome
+    Built and documented by <a href="https://github.com/samneggs">samneggs</a> · Source on <a href="https://github.com/samneggs/FruitJam">GitHub</a> · Corrections welcome
   </footer>
 </section>
 

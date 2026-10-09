@@ -3,7 +3,7 @@
 A real-time raytraced arcade game for the RP2350 (Adafruit Fruit Jam), written as Thumb-2 assembly inside MicroPython. Inspired by Ballblazer on the Atari 8-bit.
 
 - **Write-up:** https://samneggs.github.io/FruitJam/raytracer/
-- **Video:** [YOUTUBE LINK]
+- **Video:** https://youtu.be/bbW3knng5Bs
 
 ![Twilight arena](screenshots/shot_twilight.jpg)
 

@@ -1,0 +1,813 @@
+<title>Fluid FM Explained</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column with a three-level switch that rewrites each section in place; figures break wider. */
+:root {
+  --paper: #F2F4F7; --panel: #FFFFFF; --ink: #17212C; --muted: #5A6777; --line: #D4DBE4; --soft: #E7EBF1;
+  --accent: #A3367E; --c0: #B8621A; --c1: #12807B;
+  --m-rt: #A9B4C1; --m-code: #3F4B59; --m-drv: #12807B; --m-syn: #B8621A; --m-fb: #7A4BC0; --m-p: #2E8C59; --m-field: #3A6CCF;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F151C; --panel: #161E27; --ink: #E3E9F0; --muted: #93A1B2; --line: #2A3542; --soft: #1C2631;
+  --accent: #E07AB8; --c0: #F0A04B; --c1: #3CC2BB;
+  --m-rt: #4B5767; --m-code: #8E9BAA; --m-drv: #3CC2BB; --m-syn: #F0A04B; --m-fb: #A985E8; --m-p: #5CC48B; --m-field: #6F99EE;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0F151C; --panel: #161E27; --ink: #E3E9F0; --muted: #93A1B2; --line: #2A3542; --soft: #1C2631;
+  --accent: #E07AB8; --c0: #F0A04B; --c1: #3CC2BB;
+  --m-rt: #4B5767; --m-code: #8E9BAA; --m-drv: #3CC2BB; --m-syn: #F0A04B; --m-fb: #A985E8; --m-p: #5CC48B; --m-field: #6F99EE;
+  color-scheme: dark }
+
+body { background: var(--paper); color: var(--ink); font: 17px/1.65 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.12; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.5rem, 6vw, 4.2rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.12rem; font-weight: 700; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--soft); padding: 0.08em 0.35em; border-radius: 4px; }
+a { color: var(--accent); }
+.eyebrow { font: 600 0.74rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 1rem; }
+
+/* level visibility: an element lists the levels it belongs to, e.g. data-level="i e" */
+body.lv-b [data-level]:not([data-level~="b"]),
+body.lv-i [data-level]:not([data-level~="i"]),
+body.lv-e [data-level]:not([data-level~="e"]) { display: none !important; }
+
+/* level switch */
+.bar-top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar-top .wrap { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem 1.2rem; padding-block: 10px; flex-wrap: wrap; }
+.brand { font: 700 0.95rem/1 var(--display); }
+.switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); gap: 2px; }
+.switch button { font: 600 0.82rem/1 var(--mono); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 0.55em 1em; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* hero */
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; padding-block: clamp(2rem, 5vw, 4rem); }
+.hero .lede { font-size: 1.12rem; max-width: 46ch; }
+.screen { background: #05070A; border-radius: 14px; padding: 12px; box-shadow: 0 18px 40px -24px rgba(10, 20, 40, 0.6); margin: 0; }
+.screen canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 6px; background: #000; }
+.screen figcaption { color: #9AA6B4; font: 400 0.74rem/1.45 var(--mono); padding: 10px 4px 2px; }
+.levelnote { border: 1px dashed var(--line); border-radius: 10px; padding: 0.7rem 0.9rem; font-size: 0.92rem; color: var(--muted); max-width: 52ch; }
+
+/* sections */
+section.part { border-top: 1px solid var(--line); }
+section.part > .wrap { padding-block: clamp(2.2rem, 5vw, 4rem); display: flex; flex-direction: column; gap: 1.4rem; }
+.head { display: flex; flex-direction: column; gap: 0.55rem; max-width: 68ch; }
+.prose { display: flex; flex-direction: column; gap: 1rem; max-width: 68ch; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+figure > figcaption { font: 400 0.8rem/1.5 var(--mono); color: var(--muted); max-width: 80ch; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: clamp(14px, 2.4vw, 22px); }
+.scroll { overflow-x: auto; }
+svg text { font-family: var(--mono); }
+.t-ink { fill: var(--ink); } .t-muted { fill: var(--muted); } .t-on { fill: #FFFFFF; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+
+/* step list */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; counter-reset: s; max-width: 72ch; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 0.8rem; align-items: start; }
+ol.steps li::before { content: counter(s); font: 700 0.95rem/2rem var(--display); text-align: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--soft); color: var(--accent); }
+ol.steps b { font-family: var(--display); }
+
+/* facts */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; }
+.fact { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.fact b { font: 700 1.3rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.fact span { font-size: 0.86rem; color: var(--muted); line-height: 1.4; }
+
+/* program files (expert) */
+.lane-title { font: 600 0.74rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.files { display: flex; flex-direction: column; gap: 0.55rem; }
+.file { border: 1px solid var(--line); border-radius: 9px; padding: 0.6rem 0.8rem; background: var(--paper); display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.file b { font: 600 0.88rem/1.3 var(--mono); }
+.file span { font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
+.file.key { border-color: var(--accent); }
+.arrow { font: 400 0.78rem/1.3 var(--mono); color: var(--muted); padding-left: 0.8rem; }
+
+/* stage cards (expert) */
+.stages { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.9rem; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.stage header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
+.stage h3 { font-size: 1.02rem; }
+.stage .ms { font: 600 0.8rem/1 var(--mono); color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stage p { font-size: 0.92rem; line-height: 1.5; }
+.stage .fn { font: 400 0.76rem/1.3 var(--mono); color: var(--muted); }
+
+/* tables */
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.72rem/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; font: 400 0.82rem/1.5 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rot td { text-align: center; font-family: var(--mono); font-size: 0.8rem; }
+.rot td:first-child { text-align: left; font-family: var(--body); font-size: 0.9rem; }
+.tag { display: inline-block; padding: 0.12em 0.5em; border-radius: 5px; font: 600 0.76rem/1.4 var(--mono); }
+.tag.u { background: color-mix(in srgb, var(--m-field) 20%, transparent); color: var(--m-field); }
+.tag.d { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.tag.s { background: var(--soft); color: var(--muted); }
+.tag.w { outline: 1.5px solid currentColor; }
+.ref td:first-child { font-family: var(--mono); font-size: 0.82rem; white-space: nowrap; }
+.where { font: 600 0.7rem/1.3 var(--mono); white-space: nowrap; }
+.where.c0 { color: var(--c0); } .where.c1 { color: var(--c1); } .where.both { color: var(--accent); }
+.memtable td:nth-child(1) { font-family: var(--mono); font-size: 0.8rem; white-space: nowrap; }
+.sw { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 2px; margin-right: 0.5em; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; font: 400 0.78rem/1.4 var(--mono); color: var(--muted); }
+.legend i { display: inline-block; width: 0.8em; height: 0.8em; border-radius: 2px; margin-right: 0.4em; vertical-align: -0.05em; }
+
+/* bars */
+.tbar, .membar, .ibar { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.tbar { height: 44px; } .membar { height: 54px; } .ibar { height: 34px; }
+.tbar div, .ibar div { display: flex; align-items: center; justify-content: center; font: 600 0.72rem/1.1 var(--mono); color: #fff; overflow: hidden; white-space: nowrap; min-width: 0; }
+.ibar div { justify-content: flex-start; padding-left: 8px; }
+.membar div { display: flex; flex-direction: column; justify-content: center; padding: 0 8px; color: #fff; font: 600 0.72rem/1.25 var(--mono); overflow: hidden; white-space: nowrap; min-width: 0; }
+.membar div small { font-weight: 400; opacity: 0.9; }
+.tlegend { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.35rem 1rem; font: 400 0.8rem/1.4 var(--mono); color: var(--muted); }
+.tlegend i { display: inline-block; width: 0.75em; height: 0.75em; border-radius: 2px; margin-right: 0.45em; vertical-align: -0.03em; }
+.tlegend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* audio chain (expert) */
+.chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.5rem; }
+.chain .node { flex: 1 1 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.chain .node b { font: 600 0.84rem/1.3 var(--mono); }
+.chain .node span { font-size: 0.86rem; line-height: 1.45; color: var(--muted); }
+.chain .node em { font: 600 0.74rem/1 var(--mono); font-style: normal; color: var(--c1); }
+
+.formula { font: 400 0.86rem/1.7 var(--mono); background: var(--soft); border-radius: 9px; padding: 0.8rem 1rem; overflow-x: auto; white-space: pre; }
+.keys { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.45rem 1rem; align-items: baseline; }
+kbd { font: 600 0.78rem/1 var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0.25em 0.55em; background: var(--panel); white-space: nowrap; }
+dl.gloss { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.55rem 1.2rem; margin: 0; max-width: 84ch; }
+dl.gloss dt { font: 600 0.86rem/1.6 var(--mono); }
+dl.gloss dd { margin: 0; font-size: 0.95rem; }
+
+footer .wrap { padding-block: 2rem 3rem; border-top: 1px solid var(--line); font: 400 0.8rem/1.6 var(--mono); color: var(--muted); }
+@media (max-width: 860px) { .hero .wrap, .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { body { font-size: 16px; } dl.gloss { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; } dl.gloss dd { margin-bottom: 0.6rem; } .brand { display: none; } }
+@media (prefers-reduced-motion: reduce) { .bar-top { backdrop-filter: none; } }
+</style>
+
+<body class="lv-b">
+<div class="bar-top">
+  <div class="wrap">
+    <span class="brand">Fluid FM Explained</span>
+    <div class="switch" role="group" aria-label="Reading level">
+      <button type="button" id="lv-b" aria-pressed="true">Beginner</button>
+      <button type="button" id="lv-i" aria-pressed="false">Intermediate</button>
+      <button type="button" id="lv-e" aria-pressed="false">Expert</button>
+    </div>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="stack">
+      <span class="eyebrow">A microcontroller demo</span>
+      <h1>Fluid FM Explained</h1>
+      <p class="lede">Coloured smoke swirls across a TV while music plays, and the two react to each other. Everything you see and hear is computed live by a chip the size of a fingernail. This page explains how.</p>
+      <p class="levelnote" data-level="b">You are reading the <b>beginner</b> version. It assumes you are comfortable with technical ideas but not with programming. Switch level at the top at any time.</p>
+      <p class="levelnote" data-level="i">You are reading the <b>intermediate</b> version. It names the algorithms, data formats and program parts.</p>
+      <p class="levelnote" data-level="e">You are reading the <b>expert</b> version: program files, memory addresses read from the running board, per-stage timings and a reference for every function.</p>
+    </div>
+    <figure class="screen">
+      <canvas id="sim" width="640" height="480" aria-label="Live fluid simulation with two orbiting jets"></canvas>
+      <figcaption>The same simulation running in your browser: 160 × 120 cells, two orbiting jets, 4 × SOR at ω = 1.7, the board's RGB332 rainbow palette.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== what it does ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">What it does</span><h2>What you see and hear</h2></div>
+    <div class="prose" data-level="b">
+      <p>Two invisible jets circle the middle of the screen. They push the fluid and release coloured smoke into it. The smoke drifts, curls into eddies and slowly fades. A row of coloured bars along the bottom of the screen shows the music's frequency spectrum, low notes on the left and high notes on the right.</p>
+      <p>The music and the smoke are linked. When a tune plays, every note shoots a small puff of smoke upward from the bars, placed left or right by its pitch. A strong bass line makes the jets push harder. In the drone mode it works the other way round: four sustained notes, one for each quarter of the screen, get louder where there is more smoke and brighter where the fluid moves faster.</p>
+      <p>With a gamepad you can steer a jet of your own, change the colour scheme, skip tunes and switch between music modes. The program also runs without a gamepad.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>The program is a real-time 2D incompressible fluid simulation driving a 10-voice FM synthesizer, with the picture and the sound both sent over one HDMI cable. Two jets on a fixed orbit inject momentum and dye every frame. The dye field is colour-mapped and upscaled to the screen, with a plasma background underneath and a 64-band spectrum analyser along the bottom.</p>
+      <p>Coupling runs both ways. Fluid to sound: in drone mode each screen quadrant is sampled for mean dye (mapped to voice volume) and kinetic energy (mapped to the FM modulation index, which sets brightness). Sound to fluid: the spectrum's bass bands scale the jets' force and add a "kick" on sudden rises, the treble bands scale the dye they release, and in tune mode each MIDI note-on fires an extra jet positioned by pitch and scaled by velocity.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>62 / s</b><span>frames per second, with music</span></div>
+      <div class="fact"><b>19,200</b><span>grid cells (160 × 120)</span></div>
+      <div class="fact"><b>640 × 480</b><span>HDMI picture, 60 Hz</span></div>
+      <div class="fact"><b>10</b><span>notes at once, 32 kHz stereo</span></div>
+    </div>
+    <div class="panel grid2">
+      <div class="stack">
+        <h3>Gamepad controls</h3>
+        <p class="muted" style="font-size:.92rem">The gamepad is optional and can be plugged in while the demo runs.</p>
+      </div>
+      <div class="keys">
+        <kbd>START</kbd><span>tune + bars → tune → drones + bars → drones → silent</span>
+        <kbd>↑ ↓</kbd><span>smoke colours: rainbow, neon bands, ember, fire, ocean, aurora</span>
+        <kbd>← →</kbd><span>previous / next tune, or drone timbre</span>
+        <kbd>stick</kbd><span>steer your own jet; in drone mode it also plays a lead melody</span>
+        <kbd>SELECT</kbd><span>hold about one second to exit</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== hardware ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Hardware</span><h2>The board and the chip</h2></div>
+    <div class="prose" data-level="b">
+      <p>The board is a SparkFun IoT RedBoard built around a Raspberry Pi RP2350, a microcontroller of the kind found in small gadgets and costing a few dollars. It has two processor cores running at 246 MHz. A phone or laptop processor is many times faster and has thousands of times more memory, so the program has to be careful with both.</p>
+      <p>The chip has two kinds of memory. Inside it are 520 KB of fast memory. Next to it on the board is an 8 MB memory chip, which is roomier but slower to reach. Where each piece of data goes matters a great deal; the memory section below shows how it is split.</p>
+      <p>The chip generates the HDMI signal itself, with no graphics chip. It is programmed in MicroPython, a small version of the Python language, with the time-critical parts written as fast-running assembly code.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>RP2350 on a SparkFun IoT RedBoard: two Arm Cortex-M33 cores clocked at 246 MHz, each with a single-precision FPU and DSP instructions; 520 KB of on-chip SRAM; 8 MB of external PSRAM mapped into the address space through a cache. The picture leaves the chip through HSTX, a high-speed serial output that the display driver feeds with DMA, producing DVI/HDMI without any external video hardware. An optional gamepad connects over I2C.</p>
+      <p>The program is MicroPython 1.27 for control flow and setup, with every per-cell and per-sample loop written as inline Thumb-2 assembly (<code>@micropython.asm_thumb</code>). The assembly is generated by a Python script on a Raspberry Pi, precompiled to a <code>.mpy</code> module and loaded by the board, which keeps compile time and memory use on the board to a minimum.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== program files (expert) ===================== -->
+<section class="part" data-level="e">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Program</span>
+      <h2>Files on the Pi and on the board</h2>
+      <p>The Pi side generates the assembly kernels, compiles them, and either streams the program into the board's raw REPL or installs it as files. The board side is plain MicroPython plus one precompiled module of hand-written assembly.</p>
+    </div>
+    <div class="grid2">
+      <div class="panel stack">
+        <span class="lane-title">On the Pi (cyclebench/)</span>
+        <div class="files">
+          <div class="file key"><b>fluid_fm.py</b><span>The program. Holds two code strings, STAGE1 (allocation) and APP (everything else), and sends them to the board. <code>--install</code> writes them as standalone files instead.</span></div>
+          <div class="file"><b>fluid16_gen.py</b><span>Kernel generator. Each kernel is a Python string of <code>@micropython.asm_thumb</code> code; instructions MicroPython's assembler lacks are emitted as raw <code>data()</code> encodings.</span></div>
+          <div class="arrow">↓ mpy-cross -march=armv7emsp</div>
+          <div class="file"><b>fluid16_k.mpy</b><span>All 17 kernels plus the core1 worker, precompiled (about 3.7 KB of .mpy).</span></div>
+          <div class="file"><b>fmidi.py · make_tunes.py</b><span>MIDI file loader (runs on both machines) and the script that uploads <code>/tunes</code>.</span></div>
+          <div class="file"><b>fluid16_bench.py · rp.py</b><span>Bit-exact check of every kernel against a Python float reference; a small raw-REPL runner over <code>/dev/ttyACM0</code>.</span></div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <span class="lane-title">On the board (flash filesystem)</span>
+        <div class="files">
+          <div class="file key"><b>fluid_boot.mpy</b><span><code>import fluid_boot</code> starts the demo. It imports the next two files in order.</span></div>
+          <div class="arrow">↓ first</div>
+          <div class="file"><b>fluid_s1.mpy</b><span>STAGE1: imports the kernels and audio tables while SRAM is empty, then claims the big SRAM blocks and starts the display.</span></div>
+          <div class="arrow">↓ then</div>
+          <div class="file"><b>fluid_app.mpy</b><span>APP: palettes, synth state, tunes, core1 start-up and the main loop, which runs until SELECT is held.</span></div>
+          <div class="file"><b>dvi_rp2_hstx_audio · hdmi_audio</b><span>The HSTX display driver and the HDMI audio packet builder.</span></div>
+          <div class="file"><b>gamepadfast · colors · fmidi.mpy · /tunes</b><span>Optional I2C gamepad, colour modes, MIDI loader, four .mid files.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="prose">
+      <p><b>Why a function for the main loop?</b> MicroPython looks up module globals in a dictionary but keeps function locals in slots. The loop lives in <code>run()</code>, and about 120 module names are passed in as default arguments, so every name the loop touches is a fast local.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== physics ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">The physics</span><h2>How the fluid is simulated</h2></div>
+    <div class="prose" data-level="b">
+      <p>The screen area is divided into a grid of 160 by 120 cells. Each cell stores three numbers: how fast the fluid there moves sideways, how fast it moves up or down, and how much smoke it holds. Every frame, 62 times a second, the program updates all 19,200 cells in five steps.</p>
+    </div>
+    <ol class="steps" data-level="b">
+      <li><div><b>Stir.</b> The jets add speed and smoke to the cells around them.</div></li>
+      <li><div><b>Move.</b> Everything is carried along by the flow. Each cell looks back along its own velocity to find where its new contents came from, and copies them from there.</div></li>
+      <li><div><b>Measure.</b> The program checks each cell for fluid piling up or thinning out. A real liquid or gas can't be squeezed like that.</div></li>
+      <li><div><b>Balance.</b> It works out a pressure for every cell that would undo the piling up. This takes several rounds of comparing each cell with its four neighbours, and it is the most expensive step.</div></li>
+      <li><div><b>Correct.</b> The pressure differences are applied to the velocities. Fluid pushed in one place now has to move aside somewhere else, which is what makes it curl into swirls.</div></li>
+    </ol>
+    <div class="prose" data-level="b">
+      <p>This method is called <i>stable fluids</i>, published by Jos Stam in 1999 for computer graphics. Its main virtue is that it never blows up, however hard the jets push. It is not accurate enough for engineering, but it looks right, and that is the goal here.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>The solver follows Stam's <i>stable fluids</i> scheme on a 160 × 120 collocated grid with zero velocity at the walls. Each frame:</p>
+    </div>
+    <ol class="steps" data-level="i">
+      <li><div><b>Splat.</b> Each jet adds force and dye with a falloff over a radius of about 4 cells. The orbit positions are precomputed for all 419 steps of the orbit.</div></li>
+      <li><div><b>Advect.</b> Semi-Lagrangian: trace each cell centre backwards by its velocity and bilinearly sample u, v and dye at that point. Velocity decays ×0.999 per frame and dye ×0.994.</div></li>
+      <li><div><b>Divergence.</b> Central differences of the advected velocity.</div></li>
+      <li><div><b>Pressure.</b> Solve the Poisson equation with red-black successive over-relaxation (SOR, ω = 1.7). The pressure field is kept from the previous frame as a warm start, so 4 iterations are enough.</div></li>
+      <li><div><b>Project.</b> Subtract the pressure gradient, leaving a (nearly) divergence-free velocity field.</div></li>
+    </ol>
+    <div class="stages" data-level="e">
+      <div class="stage"><header><h3>Jets and input</h3><span class="ms">0.72 ms</span></header><p>Two jets orbit the centre, one turn every 419 frames, with all positions precomputed in a 53 KB table. Each frame they add force and dye to a small window. The gamepad gets one I2C step per frame in a four-phase cycle, so the frame never waits for its ADC.</p><span class="fn">splat · jet · zfill · zcols</span></div>
+      <div class="stage"><header><h3>Advect velocity</h3><span class="ms">3.17 ms</span></header><p>Semi-Lagrangian: backtrace each cell and bilinearly sample the old u and v there. Both components share one backtrace. Positions are clamped with <code>vmaxnm</code>/<code>vminnm</code>.</p><span class="fn">advect_uv</span></div>
+      <div class="stage"><header><h3>Advect dye</h3><span class="ms">2.28 ms</span></header><p>The same backtrace for dye, which fades ×0.994 per frame so the screen never saturates.</p><span class="fn">advect_r</span></div>
+      <div class="stage"><header><h3>Divergence</h3><span class="ms">1.21 ms</span></header><p>Central differences of the new velocity: what the pressure solve has to cancel.</p><span class="fn">divergence_h</span></div>
+      <div class="stage"><header><h3>Pressure</h3><span class="ms">4.72 ms</span></header><p>Four iterations of red-black SOR, ω = 1.7, on float32 pressure kept from the last frame. Update: p = (1 − ω)p + (ω/4)(Σneighbours − div), with (1 − ω)p computed off the critical path. Barrier after each colour pass.</p><span class="fn">pressure_rb</span></div>
+      <div class="stage"><header><h3>Project</h3><span class="ms">1.28 ms</span></header><p>Subtract the pressure gradient. Limited by memory traffic: two f16 loads and stores plus four f32 loads per cell, with both cores on the same SRAM.</p><span class="fn">project_h</span></div>
+      <div class="stage"><header><h3>Render</h3><span class="ms">1.88 ms</span></header><p>Dye to palette index, plasma background underneath, 2× bilinear upscale into the RGB332 framebuffer with the spectrum bars drawn in on the way.</p><span class="fn">index_h · bg_h · bilin_h</span></div>
+      <div class="stage"><header><h3>Synth control</h3><span class="ms">0.39 ms</span></header><p>One quadrant per frame is sampled for kinetic energy and dye, mapped to the drone voices; in tune mode, new notes fire jets. Core1 runs the spectrum FFT meanwhile.</p><span class="fn">stats_q · fm_map · splash</span></div>
+    </div>
+    <div class="prose" data-level="i e">
+      <p><b>Number formats.</b> Velocity, dye and the divergence scratch field are stored as 16-bit half-precision floats, which halves both the memory they take and the memory traffic of every pass. The M33 can't load half floats directly, so each kernel loads two cells as one 32-bit word and converts them in the FPU (<code>vcvtb</code> / <code>vcvtt</code>); all arithmetic is 32-bit. Pressure stays 32-bit, because the iterative solve needs the precision.</p>
+      <p><b>No copying.</b> There are five field buffers: u, v, dye and two scratch fields. Each step writes into whichever buffer has just been freed, and at the end of the frame the five pointers are renamed for the next one.</p>
+    </div>
+    <figure class="panel" data-level="e">
+      <div class="scroll">
+        <table class="rot" style="min-width:640px">
+          <thead><tr><th>Step</th><th>Buffer A</th><th>Buffer B</th><th>Buffer C</th><th>Buffer D</th><th>Buffer E</th></tr></thead>
+          <tbody>
+            <tr><td>Frame starts</td><td><span class="tag u">u</span></td><td><span class="tag u">v</span></td><td><span class="tag d">dye</span></td><td><span class="tag s">free</span></td><td><span class="tag s">free</span></td></tr>
+            <tr><td>Advect velocity</td><td>read</td><td>read</td><td></td><td><span class="tag u w">u′</span></td><td><span class="tag u w">v′</span></td></tr>
+            <tr><td>Advect dye</td><td><span class="tag d w">dye′</span></td><td>read</td><td>read</td><td></td><td></td></tr>
+            <tr><td>Divergence</td><td></td><td><span class="tag s w">div</span></td><td></td><td>read</td><td>read</td></tr>
+            <tr><td>Pressure · Project</td><td></td><td>read</td><td></td><td><span class="tag u w">u″</span></td><td><span class="tag u w">v″</span></td></tr>
+            <tr><td>Render · Spectrum</td><td>read</td><td></td><td><span class="tag s w">index bytes · FFT</span></td><td></td><td></td></tr>
+            <tr><td>Rename for next frame</td><td><span class="tag d">dye</span></td><td><span class="tag s">free</span></td><td><span class="tag s">free</span></td><td><span class="tag u">u</span></td><td><span class="tag u">v</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>Outlined tags are writes. Advect-dye writes into A while it still reads u from A; that is safe because each cell reads only its own u before overwriting it. The old dye buffer (C) is reused for the render's palette-index bytes and the spectrum's FFT workspace.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== picture ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">The picture</span><h2>From smoke to pixels</h2></div>
+    <div class="prose" data-level="b">
+      <p>Each cell's amount of smoke is turned into a colour. The program keeps a palette of 256 colours, from black through the colours of the chosen scheme; little smoke picks a colour near the dark end, a lot of smoke a colour near the bright end. Two of the six schemes slowly rotate their hues, and each note in a tune nudges them further.</p>
+      <p>The picture in memory is 320 by 240 pixels with one byte per pixel, which allows 256 colours: 3 bits of red, 3 of green and 2 of blue. The HDMI signal is 640 by 480, so each stored pixel appears as a 2 × 2 block on the TV. The grid is coarser again: one cell covers 2 × 2 stored pixels. To avoid a blocky look, the in-between pixels are blended from neighbouring cells. A faint moving background pattern fills the areas without smoke.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>Rendering is three passes, each split between the cores by screen half. First, dye is scaled and saturated to an 8-bit palette index per cell. Second, a plasma background is built from three byte-wave tables, added with saturating byte-SIMD instructions (<code>uqadd8</code>, four cells per operation) and kept only where it is brighter than the smoke. Third, the 160 × 120 index grid is upscaled 2× with bilinear interpolation and looked up in the palette, writing the 320 × 240 framebuffer in RGB332 (one byte per pixel). The display driver scans that out as 640 × 480 at 60 Hz.</p>
+      <p>The spectrum bars are drawn by the same upscaling pass, row by row into a small line buffer before it is copied to the screen. Drawing them in a separate pass afterwards left visible tearing lines, because the screen could be scanned out between the two writes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== sound ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">The music</span><h2>How the sound is made</h2></div>
+    <div class="chain" data-level="e" aria-label="Audio signal chain">
+      <div class="node"><em>core1 · IRQ</em><b>service_flags</b><span>Driver, first in each IRQ: builds packets from queued samples and TERC4-encodes them into SRAM slots, behind the beam.</span></div>
+      <div class="node"><em>core1 · IRQ</em><b>seq_step</b><span>MIDI sequencer (Viper): starts and releases the notes due in the next block.</span></div>
+      <div class="node"><em>core1 · IRQ</em><b>fm_render</b><span>Two-operator FM for each active voice, summed into stereo accumulators.</span></div>
+      <div class="node"><em>core1 · IRQ</em><b>fm_pack</b><span>Saturate to 16 bits and pack L|R into one word per sample.</span></div>
+      <div class="node"><em>PSRAM ring</em><b>audio_write_packed</b><span>1024-sample ring, kept about 448 samples (14 ms) full.</span></div>
+    </div>
+    <figure class="panel stack" data-level="e">
+      <div class="ibar" id="irqbar" aria-label="Audio interrupt time budget"></div>
+      <figcaption>One audio interrupt, ≈492 µs, producing 136 samples; about 235 run every second, roughly 12% of core1. Most of it is the HDMI packet encoding, not the synth.</figcaption>
+    </figure>
+    <div class="grid2">
+      <div class="prose" data-level="b">
+        <p>The sound comes from FM synthesis, the technique behind 1980s instruments like the Yamaha DX7 and many game consoles of that era. Each voice is a sine wave whose pitch is wobbled very rapidly by a second sine wave. A gentle wobble gives a soft, round tone; a strong one gives a bright, buzzy tone. Changing the ratio between the two waves turns the same voice into something like a piano, a bell, an organ or a drum.</p>
+        <p>The program computes 32,000 stereo samples per second, with up to 10 notes sounding at once. Tunes come from standard MIDI files, the note-by-note format used by electronic instruments: a Bach prelude, Pachelbel's Canon, music from Holst's <i>The Planets</i> and an original groove written for this demo.</p>
+        <p>The sound reaches the TV over the same HDMI cable as the picture. HDMI has short gaps between the lines of the image, and real HDMI devices tuck audio into those gaps. This program does the same thing in software, packing up to four samples into each gap.</p>
+      </div>
+      <div class="prose" data-level="i">
+        <p>Each voice is two-operator FM: a modulator sine offsets the phase of a carrier sine. The modulation index (brightness) and amplitude glide toward their targets with one-pole smoothing, so changes never click. Everything is integer: 32-bit phase accumulators, a 1024-entry 16-bit sine table, and stereo accumulators that are saturated to 16 bits at the end.</p>
+        <div class="formula">mod   = sin(modulator phase)
+out   = sin(carrier phase + mod × index) × amplitude
+left += out × pan_left     right += out × pan_right</div>
+        <p>Tunes are parsed on the board at start-up: tempo changes become sample times, each General MIDI instrument maps to an FM preset, and notes are assigned to voices ahead of time. Playback then only copies prepared 8-word event rows into voice state. Drums on MIDI channel 10 are FM too (kick, snare, hi-hat, crash, toms).</p>
+        <p>The audio is sent as HDMI <i>data islands</i>: packets placed in the horizontal blanking interval, one on every second scan line, each holding up to four stereo samples. The driver paces them against the pixel clock, so the TV receives exactly 32,000 samples per second.</p>
+      </div>
+      <div class="prose" data-level="e">
+        <p>Each voice is two-operator FM in integer arithmetic: 32-bit phase accumulators, a 1024-entry Q15 sine table indexed by the top 10 bits, and one-pole smoothing (<code>x += (target − x) &gt;&gt; 9</code>) on index and amplitude. Stereo is accumulated in int32 with <code>smlabb</code>/<code>smlabt</code> against Q8 pan gains, then <code>ssat</code> and <code>pkhbt</code> pack it.</p>
+        <div class="formula">m  = sin[(mph += minc) &gt;&gt; 22]
+s  = sin[(cph += cinc) + m · idx  &gt;&gt; 22]
+v  = s · a &gt;&gt; 15
+L += v · panL      R += v · panR</div>
+        <p>HDMI audio uses data islands in horizontal blanking: one island on every even line (263 per frame), up to four stereo samples each, Bresenham-paced against the pixel clock. Islands are encoded a quarter-frame at a time into 133 slots of 36 words, behind the beam. <code>fmidi</code> converts a standard MIDI file at load time into 8 × int32 rows (time, voice, carrier and modulator increments, index, amplitude, decay shift, note info), so the interrupt only copies rows.</p>
+        <p>After rendering, core1 runs <code>spec</code>: a Hann-windowed 1024-point radix-2 FFT of the ring, folded into 64 log-spaced bars from 60 Hz to 8 kHz, with bar heights taken from the float exponent bits as a cheap log2.</p>
+      </div>
+      <figure class="panel" style="align-self:start">
+        <svg viewBox="0 0 420 220" style="width:100%;height:auto" role="img" aria-label="Fluid and synthesizer influence each other">
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+          <rect x="20" y="80" width="130" height="60" rx="10" style="fill:var(--m-field);opacity:.16"/><rect x="20" y="80" width="130" height="60" rx="10" style="fill:none;stroke:var(--m-field)"/>
+          <text x="85" y="107" text-anchor="middle" class="t-ink" font-size="15" font-weight="600">fluid</text>
+          <text x="85" y="126" text-anchor="middle" class="t-muted" font-size="11">motion · smoke</text>
+          <rect x="270" y="80" width="130" height="60" rx="10" style="fill:var(--m-syn);opacity:.16"/><rect x="270" y="80" width="130" height="60" rx="10" style="fill:none;stroke:var(--m-syn)"/>
+          <text x="335" y="107" text-anchor="middle" class="t-ink" font-size="15" font-weight="600">music</text>
+          <text x="335" y="126" text-anchor="middle" class="t-muted" font-size="11">10 FM voices</text>
+          <path d="M110,78 C150,18 270,18 310,78" style="fill:none;stroke:var(--muted);stroke-width:1.5" marker-end="url(#ah)"/>
+          <path d="M310,142 C270,202 150,202 110,142" style="fill:none;stroke:var(--muted);stroke-width:1.5" marker-end="url(#ah)"/>
+          <text x="210" y="30" text-anchor="middle" class="t-ink" font-size="11">smoke → volume, swirl → brightness</text>
+          <text x="210" y="204" text-anchor="middle" class="t-ink" font-size="11">bass → jet push, notes → puffs</text>
+        </svg>
+        <figcaption>The two-way link. The bars along the bottom of the screen come from a frequency analysis (FFT) of the last 1024 samples of sound.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== two cores ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Two cores</span><h2>Sharing the work between two cores</h2></div>
+    <div class="prose" data-level="b">
+      <p>Every step of the simulation has to visit all 19,200 cells, so both cores work on each step at the same time. They split the work by rows of the grid. Neither core owns a fixed half. Instead, each takes the next unfinished row from a shared counter, so they finish together even if one of them is slowed down.</p>
+      <p>And core 1 does get slowed down. Besides its share of the fluid, it makes the sound: about 235 times a second it stops what it is doing for half a millisecond to compute the next batch of samples. While it is away, core 0 simply keeps taking rows. Core 0 also runs the main program, which reads the gamepad and decides what happens next.</p>
+    </div>
+    <div class="prose" data-level="i">
+      <p>Core 0 runs the MicroPython main loop. Core 1 is started once, installs the audio interrupt on itself, and then sits in an assembly job loop for the rest of the run. Core 0 posts a job to it (kernel address plus arguments) through a small shared array and a hardware event signal, runs its own share of the same kernel, then waits for core 1 to report it done.</p>
+      <p>For advection, divergence and projection the rows are handed out dynamically from a counter that both cores increment with exclusive load/store instructions (<code>ldrex</code>/<code>strex</code>), so no row is processed twice. This matters because the audio interrupt (about 0.5 ms, roughly every 4.25 ms) lands on core 1 at unpredictable moments; with a fixed split, core 0 used to sit idle for about 1.7 ms per frame. The counters must be in on-chip SRAM, because exclusive access is not supported on the external PSRAM. The pressure solve keeps a fixed split, because red-black ordering needs both cores to finish one colour before either starts the next; the cores meet at a barrier after each pass.</p>
+    </div>
+    <div class="grid3" data-level="e">
+      <div class="panel stack">
+        <h3>The job mailbox</h3>
+        <p>A seven-word array: <code>seq, fn, a0, a1, a2, done, a3</code>. Core0's <code>go1()</code> writes a kernel's address and arguments, increments <code>seq</code> and executes <code>sev</code>. Core1 sleeps in <code>wfe</code>, wakes, calls the kernel with <code>blx</code>, issues <code>dmb</code>, writes <code>done = seq</code> and signals back. Core0 runs its own share meanwhile, then <code>wait1()</code> polls <code>done</code>.</p>
+      </div>
+      <div class="panel stack">
+        <h3>Shared row counters</h3>
+        <p>Advection, divergence and projection take rows from four int32 counters at 0x2001_FE70, reset to row 1 at the start of each frame. A claim is <code>ldrex</code>, add one, <code>strex</code>, retry on failure. The counters must be in SRAM; the RP2350's global exclusive monitor does not cover PSRAM. Cost: about a dozen cycles per row, against thousands of cycles of work per row.</p>
+      </div>
+      <div class="panel stack">
+        <h3>The pressure barrier</h3>
+        <p>Red-black SOR updates one checkerboard colour, then the other, and each colour reads the other. The grid is split at the middle row. After every colour pass each core bumps its own flag and spins until the other core's flag catches up, with a ≈1.6 s timeout so a stuck core raises an error instead of hanging the board.</p>
+      </div>
+    </div>
+    <figure class="panel">
+      <div class="scroll"><svg id="rows" viewBox="0 0 1000 140" style="min-width:600px;width:100%;height:auto" role="img" aria-label="Which core processed each row in one pass"></svg></div>
+      <figcaption>Which core handled each row in one pass (an illustration of the scheme, not a capture). The cores alternate rows until core 1 is called away to make sound; core 0 covers the gap.</figcaption>
+    </figure>
+    <figure class="panel" data-level="e">
+      <div class="scroll"><svg id="timeline" viewBox="0 0 1000 200" style="min-width:760px;width:100%;height:auto" role="img" aria-label="Timeline of one frame on both cores"></svg></div>
+      <figcaption>One frame on both cores. Core0 runs the Python glue and its share of each kernel; core1 runs the other share. The audio interrupt lands on core1 wherever it falls, and core1 computes the spectrum while core0 does the synth bookkeeping.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== memory ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Memory</span><h2>Where everything is stored</h2></div>
+    <div class="prose" data-level="b">
+      <p>Anything touched every frame goes in the chip's 520 KB of fast memory. The biggest items are the fluid itself (five grids of 19,200 two-byte numbers), the pressure grid (four-byte numbers, because the balancing step needs extra precision) and the picture. Together they fill about two thirds of the fast memory. The program code that runs every frame and the sound engine's working data are in there too.</p>
+      <p>The 8 MB memory holds what is used less often: the main program, the music, the colour palettes and lookup tables. More than half of it is still free.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>MicroPython's heap spans both SRAM and PSRAM, and early allocations land in SRAM. Start-up therefore runs in two stages. The first imports the assembly kernels and the audio driver's tables, then allocates one 365 KB block and slices it by hand into the framebuffer, the pressure field, the five half-float fields and the audio packet slots. The display driver's own buffer allocations are redirected into that block while it starts. Only then does the second stage load the rest of the program, whose objects land mostly in PSRAM.</p>
+    </div>
+    <figure class="panel stack" data-level="b i">
+      <span class="eyebrow" style="color:var(--muted)">Fast memory · 520 KB on the chip</span>
+      <div class="membar" aria-label="SRAM use">
+        <div style="flex:192000 0 0;background:var(--m-field)">fluid grids<small>192 KB</small></div>
+        <div style="flex:76800 0 0;background:var(--m-p)">pressure<small>77 KB</small></div>
+        <div style="flex:76800 0 0;background:var(--m-fb)">picture<small>77 KB</small></div>
+        <div style="flex:62720 0 0;background:var(--m-drv)">video + audio<small>63 KB</small></div>
+        <div style="flex:18496 0 0;background:var(--m-syn)">code + synth</div>
+        <div style="flex:105152 0 0;background:var(--m-rt)">MicroPython + misc<small>≈105 KB</small></div>
+      </div>
+      <figcaption data-level="b">Drawn to scale. "Video + audio" is the display driver's command lists and the packets of sound waiting to be sent.</figcaption>
+      <figcaption data-level="i">To scale. Video + audio: HSTX/DMA control blocks (24.6 KB), 133 audio data-island slots (19.2 KB), the audio encoder's code and tables, and per-line command lists. Code + synth: the kernel machine code (≈10 KB) and the synth block (8.5 KB: sine table, voice state, accumulators, spectrum and background tables, row counters).</figcaption>
+    </figure>
+    <figure class="panel stack" data-level="e">
+      <div class="scroll"><svg id="memmap" viewBox="0 0 1000 250" style="min-width:760px;width:100%;height:auto" role="img" aria-label="SRAM memory map drawn to scale"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--m-rt)"></i>MicroPython runtime</span>
+        <span><i style="background:var(--m-code)"></i>machine code</span>
+        <span><i style="background:var(--m-drv)"></i>display / audio driver</span>
+        <span><i style="background:var(--m-syn)"></i>synth block</span>
+        <span><i style="background:var(--m-fb)"></i>framebuffer</span>
+        <span><i style="background:var(--m-p)"></i>pressure</span>
+        <span><i style="background:var(--m-field)"></i>float16 fields</span>
+      </div>
+      <figcaption>SRAM 0x2000_0000–0x2008_2000, to scale, addresses read from the running board. The lower strip zooms into the 365 KB arena that STAGE1 carves by hand. The end of the kernel-code region is approximate.</figcaption>
+    </figure>
+    <div class="scroll" data-level="e"><table class="memtable" id="memtable" style="min-width:620px"></table></div>
+    <div class="grid2" data-level="e">
+      <div class="panel stack">
+        <h3>The synth block, 8,464 bytes</h3>
+        <p class="muted" style="font-size:.92rem">One SRAM allocation at 0x2001_DD70 for everything the audio interrupt and the spectrum touch. In PSRAM the interrupt took about twice as long.</p>
+        <table><tbody>
+          <tr><td class="num">+0</td><td>Sine table, 1024 × int16 Q15</td><td class="num">2,048</td></tr>
+          <tr><td class="num">+2048</td><td>Stereo accumulators, 256 × 2 × int32</td><td class="num">2,048</td></tr>
+          <tr><td class="num">+4096</td><td>Packed PCM out, 256 × L|R</td><td class="num">1,024</td></tr>
+          <tr><td class="num">+5120</td><td>Header + 12 voices × 40 B</td><td class="num">512</td></tr>
+          <tr><td class="num">+5632</td><td>Spectrum control, bars, bin edges, bar colours, band sums; render and background control blocks</td><td class="num">1,024</td></tr>
+          <tr><td class="num">+6656</td><td>Plasma wave tables (512 + 512 + 768)</td><td class="num">1,792</td></tr>
+          <tr><td class="num">+8448</td><td>Row counters: advect u,v · advect dye · div · project</td><td class="num">16</td></tr>
+        </tbody></table>
+      </div>
+      <div class="panel stack">
+        <h3>What lives in PSRAM</h3>
+        <p class="muted" style="font-size:.92rem">The 8 MB PSRAM at 0x1100_0000 holds the rest of the heap: about 3.9 MB in use and 4.7 MB free while the demo runs.</p>
+        <table><tbody>
+          <tr><td>Tune event rows (4 tunes, 8 × int32 per event)</td><td class="num">174,624</td></tr>
+          <tr><td>Orbit jet table, 419 steps × 2 jets × 64 B</td><td class="num">53,632</td></tr>
+          <tr><td>Smoke palettes (rotating ones hold 32 hue steps)</td><td class="num">17,408</td></tr>
+          <tr><td>Audio ring, 1024 stereo samples</td><td class="num">4,096</td></tr>
+          <tr><td>Parameter blocks (job mailbox, kernel parameters, synth control)</td><td class="num">&lt; 1,000</td></tr>
+          <tr><td>Python bytecode and objects of the app</td><td class="num">rest</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <figure class="panel stack" data-level="b i">
+      <span class="eyebrow" style="color:var(--muted)">External memory · 8 MB</span>
+      <div class="membar" aria-label="PSRAM use">
+        <div style="flex:3906 0 0;background:var(--m-rt)">in use<small>3.9 MB</small></div>
+        <div style="flex:4738 0 0;background:var(--soft);color:var(--muted)">free<small>4.7 MB</small></div>
+      </div>
+      <figcaption data-level="b">In use: the program, four tunes (175 KB of prepared notes), the precomputed jet path, palettes and the sound buffer.</figcaption>
+      <figcaption data-level="i">Heap totals from the running board (gc.mem_alloc / mem_free). Notable PSRAM objects: tune event rows 175 KB, jet orbit table 54 KB, palettes 17 KB, the 4 KB audio ring buffer, and the Python bytecode of the app.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== speed ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Speed</span><h2>Where the time goes</h2>
+      <p data-level="b">At 62 frames per second each frame has about 16 milliseconds. This is how they are spent, measured on the board with music playing.</p>
+      <p data-level="i e">Wall-clock time per frame on the board with audio playing, both cores working on each step. The audio interrupt's ≈12% of core 1 is spread across all of them.</p>
+    </div>
+    <figure class="panel stack">
+      <div class="tbar" id="tbar" aria-label="Time per frame by step"></div>
+      <div class="tlegend" id="tlegend"></div>
+      <figcaption>Total 15.65 ms per frame (62.4 frames per second).</figcaption>
+    </figure>
+    <div class="prose" data-level="b">
+      <p>Balancing the pressure is the largest single step, and moving the fluid along (velocity and smoke together) takes even longer. Drawing the picture is comparatively cheap. The sound engine doesn't appear in the bar because it runs in the gaps, interrupting core 1 for short bursts.</p>
+    </div>
+    <div class="prose" data-level="i e">
+      <p>The main techniques behind these numbers: every inner loop is hand-scheduled assembly running from SRAM, using M33 instructions that MicroPython's built-in assembler does not support (emitted as raw encodings); half-float storage; rows shared between the cores; SOR with a warm start for the pressure; precomputed tables for anything that can be precomputed; and a main loop that allocates nothing, so the garbage collector never pauses it.</p>
+      <p data-level="i">The loop also runs inside a function with module names bound as default arguments, because MicroPython reads locals much faster than globals. Each audio interrupt takes about 0.5 ms and produces 136 samples; just under half of that is the HDMI packet encoding and about 40% is the sequencer plus FM synthesis.</p>
+    </div>
+    <div class="scroll" data-level="e">
+      <table class="ref" style="min-width:720px">
+        <thead><tr><th>Function</th><th>Runs on</th><th>What it does</th><th class="num">Cost</th></tr></thead>
+        <tbody>
+          <tr><td colspan="4" class="eyebrow" style="padding-top:1rem">Fluid kernels (asm_thumb)</td></tr>
+          <tr><td>splat</td><td><span class="where c0">core0</span></td><td>Adds force and dye in a small window around a point; used by the orbit jets, the gamepad jet and note jets.</td><td class="num">≈0.03 ms</td></tr>
+          <tr><td>advect_uv</td><td><span class="where both">both</span></td><td>Backtrace + bilinear sample of u and v in one pass; rows from a shared counter.</td><td class="num">3.17 ms · 73 cyc/cell</td></tr>
+          <tr><td>advect_r</td><td><span class="where both">both</span></td><td>The same for dye, with fade.</td><td class="num">2.28 ms · 54 cyc/cell</td></tr>
+          <tr><td>divergence_h</td><td><span class="where both">both</span></td><td>Central-difference divergence; rows from a shared counter.</td><td class="num">1.21 ms · 29 cyc/cell</td></tr>
+          <tr><td>pressure_rb</td><td><span class="where both">both</span></td><td>Red-black SOR on float32 pressure, a spin barrier between colour passes.</td><td class="num">4.72 ms · 27 cyc/cell/iter</td></tr>
+          <tr><td>project_h</td><td><span class="where both">both</span></td><td>Subtracts the pressure gradient from u and v.</td><td class="num">1.28 ms · 31 cyc/cell</td></tr>
+          <tr><td>zfill · zcols</td><td><span class="where c0">core0</span></td><td>Zero the pad row and the edge columns: the walls of the box.</td><td class="num">small</td></tr>
+          <tr><td colspan="4" class="eyebrow" style="padding-top:1rem">Picture</td></tr>
+          <tr><td>index_h</td><td><span class="where both">both halves</span></td><td>Dye × scale → saturated palette index, two cells per word.</td><td class="num" rowspan="3">1.88 ms total</td></tr>
+          <tr><td>bg_h</td><td><span class="where both">both halves</span></td><td>Plasma: three byte wave tables added with <code>uqadd8</code>, kept only where brighter than the smoke (<code>usub8</code> + <code>sel</code>).</td></tr>
+          <tr><td>bilin_h</td><td><span class="where both">both halves</span></td><td>2× bilinear upscale through the palette into the framebuffer; draws the spectrum bars into a line buffer as it goes.</td></tr>
+          <tr><td>render_h</td><td><span class="where both">both halves</span></td><td>Alternative "block" mode: 2 × 2 pixels per cell, no interpolation.</td><td class="num">15 cyc/cell</td></tr>
+          <tr><td colspan="4" class="eyebrow" style="padding-top:1rem">Sound</td></tr>
+          <tr><td>spec</td><td><span class="where c1">core1 job</span></td><td>1024-point FFT of the audio ring → 64 bars, band sums, jet gains for the next frame.</td><td class="num">overlaps synth ctl</td></tr>
+          <tr><td>stats_q</td><td><span class="where c0">core0</span></td><td>Sums kinetic energy and dye over one quadrant (every 4th cell, 300 samples).</td><td class="num" rowspan="2">0.29 ms incl. note logic</td></tr>
+          <tr><td>fm_map</td><td><span class="where c0">core0</span></td><td>Quadrant sums → each drone's target index and volume, without allocating Python floats.</td></tr>
+          <tr><td>fm_render</td><td><span class="where c1">core1 IRQ</span></td><td>The FM voices; adds into stereo accumulators.</td><td class="num">≈36 cyc/voice/sample with seq_step</td></tr>
+          <tr><td>fm_pack</td><td><span class="where c1">core1 IRQ</span></td><td>Saturate, pack L|R, clear the accumulators.</td><td class="num">10 µs/IRQ</td></tr>
+          <tr><td>seq_step</td><td><span class="where c1">core1 IRQ</span></td><td>Viper MIDI sequencer: note-ons, releases and per-voice decay.</td><td class="num">in synth time</td></tr>
+          <tr><td colspan="4" class="eyebrow" style="padding-top:1rem">Python glue</td></tr>
+          <tr><td>run()</td><td><span class="where c0">core0</span></td><td>The main loop: jets, gamepad, kernel dispatch, buffer renaming, synth control, a status line every 5 s.</td><td class="num">≈1.1 ms incl. pad, jets</td></tr>
+          <tr><td>go1 · wait1</td><td><span class="where c0">core0</span></td><td>Post a job to core1; wait for it to finish.</td><td class="num"></td></tr>
+          <tr><td>worker · sev</td><td><span class="where c1">core1</span></td><td>The core1 job loop (sleeps in <code>wfe</code>, calls kernels by address); the event signal.</td><td class="num"></td></tr>
+          <tr><td>isr · core1</td><td><span class="where c1">core1</span></td><td>The audio interrupt handler; core1's entry point, which installs it and starts the worker.</td><td class="num">≈0.5 ms/IRQ</td></tr>
+          <tr><td>jet · splash</td><td><span class="where c0">core0</span></td><td>Pack a splat for the current fields; map a note (pitch, velocity, drum kind) to one or two jets.</td><td class="num"></td></tr>
+          <tr><td>setmode · start_tune · retune · tune</td><td><span class="where c0">core0</span></td><td>Switch sound mode and bars; load a tune into the sequencer; set chord and timbre; set a voice's frequencies.</td><td class="num"></td></tr>
+          <tr><td>newpad · bindpad</td><td><span class="where c0">core0</span></td><td>Gamepad hot-plug: look for a pad every ≈2 s, bind its I2C reads to locals.</td><td class="num"></td></tr>
+          <tr><td>fmidi.load</td><td><span class="where c0">core0, at start</span></td><td>Standard MIDI file → event rows, instruments and voice allocation done once.</td><td class="num"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== glossary ===================== -->
+<section class="part">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Terms</span><h2>Glossary</h2></div>
+    <dl class="gloss" data-level="b">
+      <dt>microcontroller</dt><dd>A complete small computer on one chip, with processor, memory and input/output, made for embedding in devices.</dd>
+      <dt>core</dt><dd>One processor inside the chip. This chip has two, which can work at the same time.</dd>
+      <dt>frame</dt><dd>One complete picture. The demo makes 62 per second.</dd>
+      <dt>cell</dt><dd>One square of the simulation grid, holding a velocity and an amount of smoke.</dd>
+      <dt>pressure</dt><dd>Here, a number per cell used to stop fluid from piling up or thinning out.</dd>
+      <dt>sample</dt><dd>One measurement of the sound wave. 32,000 per second for each of the two stereo channels.</dd>
+      <dt>FM synthesis</dt><dd>Making a tone by rapidly varying the pitch of one sine wave with another.</dd>
+      <dt>MIDI file</dt><dd>A music file that lists notes and their timing rather than recorded sound.</dd>
+      <dt>FFT</dt><dd>A fast way to split a sound into its frequencies; it drives the spectrum bars.</dd>
+      <dt>interrupt</dt><dd>A signal that makes a core drop what it is doing, handle something urgent (here, the next batch of sound), and then carry on.</dd>
+    </dl>
+    <dl class="gloss" data-level="i">
+      <dt>semi-Lagrangian</dt><dd>Advection by tracing each grid point backwards along the velocity and interpolating, which is unconditionally stable.</dd>
+      <dt>divergence</dt><dd>Net outflow from a cell; zero everywhere for an incompressible fluid.</dd>
+      <dt>red-black SOR</dt><dd>Gauss-Seidel iteration over a checkerboard ordering, overshooting each update by a factor ω (here 1.7) to converge faster. The ordering lets both cores update one colour in parallel.</dd>
+      <dt>float16</dt><dd>IEEE half-precision float: 1 sign, 5 exponent and 10 mantissa bits.</dd>
+      <dt>RGB332</dt><dd>One byte per pixel: 3 bits red, 3 green, 2 blue.</dd>
+      <dt>HSTX</dt><dd>RP2350's high-speed serial transmit peripheral, used here to produce DVI/HDMI signalling.</dd>
+      <dt>data island</dt><dd>An HDMI packet sent during blanking, used for audio samples and info frames.</dd>
+      <dt>ldrex / strex</dt><dd>Exclusive load and store: a read-modify-write that fails and retries if another core wrote in between.</dd>
+      <dt>SRAM / PSRAM</dt><dd>On-chip static RAM (fast) and external pseudo-static RAM behind a cache (large, slower).</dd>
+      <dt>.mpy</dt><dd>Precompiled MicroPython module; importing it skips parsing and compiling on the board.</dd>
+    </dl>
+    <dl class="gloss" data-level="e">
+      <dt>asm_thumb</dt><dd>MicroPython's inline assembler decorator. It accepts a subset of Thumb-2; everything else (here <code>vcvtb</code>, <code>vmaxnm</code>, <code>ldrex</code>, <code>uqadd8</code>, <code>smlabb</code>, <code>ssat</code>, <code>pkhbt</code>, and anything using r8–r12) is emitted as <code>data()</code> halfwords from an encoder, each with its mnemonic as a comment.</dd>
+      <dt>Viper</dt><dd>MicroPython's native-code emitter with raw pointer types; used for the sequencer and the driver's ring-buffer routines.</dd>
+      <dt>vcvtb / vcvtt</dt><dd>Convert between float32 and the bottom or top half-word of an FPU register as float16; the only half-float support on the M33.</dd>
+      <dt>exclusive monitor</dt><dd>Hardware that makes <code>ldrex</code>/<code>strex</code> atomic. The RP2350's global monitor covers SRAM only; on PSRAM the pair is not safe between cores.</dd>
+      <dt>wfe / sev</dt><dd>Wait for event and send event: core1 sleeps in <code>wfe</code> until core0's <code>sev</code> posts a job.</dd>
+      <dt>dmb</dt><dd>Data memory barrier; core1 issues it before publishing <code>done</code>, so core0 never sees the flag ahead of the kernel's results.</dd>
+      <dt>warm start</dt><dd>Starting the pressure iteration from the previous frame's solution, which is already close; with SOR, four iterations suffice.</dd>
+      <dt>Poisson equation</dt><dd>∇²p = ∇·u; solving it for p and subtracting ∇p makes the velocity divergence-free.</dd>
+      <dt>uqadd8 / usub8 + sel</dt><dd>Byte-SIMD: four saturating adds in one instruction; <code>usub8</code> sets per-byte flags that <code>sel</code> uses for a per-byte max.</dd>
+      <dt>TERC4</dt><dd>The 4-bit-to-10-bit code HDMI uses inside data islands; the driver encodes it with 256-entry lookup tables.</dd>
+      <dt>Bresenham pacing</dt><dd>Spreading 32,000 samples per second evenly over 15,780 islands per second with an integer error accumulator, as Bresenham's line algorithm does.</dd>
+      <dt>Q15 / Q8</dt><dd>Fixed-point formats with 15 or 8 fractional bits; the sine table is Q15, pan gains are Q8.</dd>
+      <dt>Hann window</dt><dd>A raised-cosine taper applied before the FFT so the block edges don't smear energy across all bars.</dd>
+      <dt>bit-exact bench</dt><dd><code>fluid16_bench.py</code> runs each kernel on the board and compares every output byte with a Python reference that reproduces float32/float16 rounding.</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Measurements from a SparkFun IoT RedBoard RP2350 at 246 MHz running MicroPython 1.27, October 2026. Memory addresses were read from the running board.</div>
+</footer>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (svg) => (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
+
+  /* ---------- level switch: hash first, then the remembered choice ---------- */
+  const LV = { b: 'beginner', i: 'intermediate', e: 'expert' };
+  const btn = { b: document.getElementById('lv-b'), i: document.getElementById('lv-i'), e: document.getElementById('lv-e') };
+  function setLevel(lv, push) {
+    document.body.classList.remove('lv-b', 'lv-i', 'lv-e'); document.body.classList.add('lv-' + lv);
+    for (const k in btn) btn[k].setAttribute('aria-pressed', k === lv);
+    try { localStorage.setItem('fluidfm-level', lv); } catch (e) {}
+    if (push) { try { history.replaceState(null, '', '#' + LV[lv]); } catch (e) { location.hash = LV[lv]; } }
+  }
+  function fromHash() {
+    const h = location.hash.slice(1);
+    for (const k in LV) if (LV[k] === h) return k;
+    try { const s = localStorage.getItem('fluidfm-level'); if (s && LV[s]) return s; } catch (e) {}
+    return 'b';
+  }
+  setLevel(fromHash(), false);
+  for (const k in btn) btn[k].addEventListener('click', () => setLevel(k, true));
+  window.addEventListener('hashchange', () => setLevel(fromHash(), false));
+
+  /* ---------- time bar ---------- */
+  const steps = [['Stir (jets, input)', 'Jets, gamepad, glue', 0.72, 'var(--m-rt)'], ['Move velocity', 'Advect u, v', 3.17, 'var(--m-field)'], ['Move smoke', 'Advect dye', 2.28, 'var(--m-field)'],
+                 ['Measure', 'Divergence', 1.21, 'var(--m-drv)'], ['Balance (pressure)', 'Pressure, 4 × SOR', 4.72, 'var(--m-p)'], ['Correct', 'Project', 1.28, 'var(--m-drv)'],
+                 ['Draw picture', 'Index, plasma, upscale', 1.88, 'var(--m-fb)'], ['Music control', 'Quadrant stats, notes', 0.39, 'var(--m-syn)']];
+  const tbar = document.getElementById('tbar'), tleg = document.getElementById('tlegend');
+  steps.forEach(([b, i, ms, c], k) => {
+    const o = k === 2 ? 0.75 : 1, d = document.createElement('div'); d.style.flex = ms + ' 0 0'; d.style.background = c; d.style.opacity = o;
+    if (ms > 1.1) d.textContent = ms.toFixed(1); d.title = b + ' · ' + ms + ' ms'; tbar.appendChild(d);
+    const l = document.createElement('div');
+    l.innerHTML = `<i style="background:${c};opacity:${o}"></i><span data-level="b">${b}</span><span data-level="i e">${i}</span> <b>${ms.toFixed(2)} ms</b>`;
+    tleg.appendChild(l);
+  });
+
+  /* ---------- audio IRQ bar (expert) ---------- */
+  const ib = document.getElementById('irqbar');
+  [['HDMI encode 236 µs', 236, 'var(--m-drv)'], ['sequencer + FM 201 µs', 201, 'var(--m-syn)'], ['write 45', 45, 'var(--m-code)'], ['', 10, 'var(--accent)']].forEach(([l, v, c]) => {
+    const d = document.createElement('div'); d.style.flex = v + ' 0 0'; d.style.background = c; d.textContent = l; d.title = l || 'pack 10 µs'; ib.appendChild(d);
+  });
+
+  /* ---------- row sharing ---------- */
+  { const el = mk(document.getElementById('rows')), ROWS = 118, rw = 870 / ROWS, x0 = 110;
+    el('text', { x: 10, y: 50, 'font-size': 12, 'font-weight': 600, style: 'fill:var(--c0)' }, 'core 0');
+    el('text', { x: 10, y: 90, 'font-size': 12, 'font-weight': 600, style: 'fill:var(--c1)' }, 'core 1');
+    let t0 = 0, t1 = 0.35; const away = [40, 63];
+    for (let r = 0; r < ROWS; r++) {
+      const w1 = (t1 >= away[0] && t1 < away[1]) ? away[1] : t1, take0 = t0 <= w1, tt = take0 ? t0 : w1;
+      if (take0) t0 = tt + 1; else t1 = tt + 1;
+      el('rect', { x: x0 + r * rw, y: take0 ? 34 : 74, width: rw - 0.6, height: 24, style: 'fill:' + (take0 ? 'var(--c0)' : 'var(--c1)') });
+    }
+    el('text', { x: x0, y: 122, 'font-size': 11, class: 't-muted' }, 'top row');
+    el('text', { x: x0 + 870, y: 122, 'text-anchor': 'end', 'font-size': 11, class: 't-muted' }, 'bottom row');
+    el('text', { x: x0 + 870 * 0.42, y: 22, 'font-size': 11, class: 't-ink' }, 'core 1 making sound → core 0 takes every row'); }
+
+  /* ---------- frame timeline (expert) ---------- */
+  { const el = mk(document.getElementById('timeline'));
+    const st = [['jets', 0.72, 'Jets'], ['uv', 3.17, 'Advect u,v'], ['dye', 2.28, 'Advect dye'], ['div', 1.21, 'Div'], ['p', 4.72, 'Pressure ×4 (SOR)'], ['proj', 1.28, 'Project'], ['ren', 1.88, 'Render'], ['syn', 0.39, '']];
+    const total = 15.65, X0 = 90, XW = 890, sx = t => X0 + XW * t / total;
+    for (let t = 0; t <= 15; t++) {
+      el('line', { x1: sx(t), x2: sx(t), y1: 28, y2: 168, style: 'stroke:var(--line);stroke-width:1' });
+      if (t % 3 === 0) el('text', { x: sx(t), y: 186, 'text-anchor': 'middle', 'font-size': 11, class: 't-muted' }, t + ' ms');
+    }
+    el('text', { x: sx(total), y: 186, 'text-anchor': 'end', 'font-size': 11, class: 't-ink' }, '15.65');
+    [['core0', 40, 'var(--c0)'], ['core1', 108, 'var(--c1)']].forEach(([name, y, col], li) => {
+      el('text', { x: 10, y: y + 27, 'font-size': 13, 'font-weight': 600, style: 'fill:' + col }, name);
+      let t = 0;
+      st.forEach(([id, d, label], i) => {
+        let fill = col, op = (i % 2) ? 0.78 : 1, text = label;
+        if (li === 0 && id === 'syn') text = '';
+        if (li === 1 && id === 'jets') { fill = 'var(--soft)'; op = 1; text = 'spectrum'; }
+        if (li === 1 && id === 'syn') { fill = 'var(--accent)'; op = 0.85; text = ''; }
+        el('rect', { x: sx(t) + 0.5, y, width: Math.max(1, sx(t + d) - sx(t) - 1), height: 40, rx: 4, style: 'fill:' + fill + ';opacity:' + op });
+        if (text && sx(t + d) - sx(t) > text.length * 6.6 + 8) el('text', { x: sx(t) + 6, y: y + 25, 'font-size': 11.5, class: (li === 1 && id === 'jets') ? 't-muted' : 't-on' }, text);
+        t += d;
+      });
+    });
+    el('text', { x: sx(15.26) - 2, y: 32, 'text-anchor': 'end', 'font-size': 10.5, class: 't-muted' }, 'synth ctl →');
+    el('text', { x: sx(15.26) - 2, y: 102, 'text-anchor': 'end', 'font-size': 10.5, class: 't-muted' }, 'spectrum →');
+    [1.1, 5.35, 9.6, 13.85].forEach(t => el('rect', { x: sx(t), y: 150, width: sx(t + 0.5) - sx(t), height: 8, rx: 2, style: 'fill:var(--accent)' }));
+    el('text', { x: sx(1.1), y: 146, 'font-size': 10.5, class: 't-muted' }, 'audio IRQ on core1 (0.5 ms, lands anywhere)'); }
+
+  /* ---------- memory map (expert) ---------- */
+  { const B = 0x20000000, SPAN = 0x82000;
+    const mem = [
+      [0x20000000, 0x20013B10, 'MicroPython runtime', 'firmware variables, stacks, early heap', 'var(--m-rt)'],
+      [0x20013B10, 0x20016240, 'Kernel code', 'fluid16_k: 17 kernels + worker, ≈10 KB', 'var(--m-code)'],
+      [0x20016240, 0x20017D60, 'Audio encoder', 'hdmi_audio asm + TERC4 tables', 'var(--m-drv)'],
+      [0x20017D60, 0x2001DD70, 'Display control blocks', 'HSTX / DMA command lists', 'var(--m-drv)'],
+      [0x2001DD70, 0x2001FE80, 'Synth block', 'sine, voices, spectrum, plasma, counters', 'var(--m-syn)'],
+      [0x2001FE80, 0x20022D80, 'Driver lists', 'scan-line commands, audio packet jobs', 'var(--m-drv)'],
+      [0x20022D80, 0x20035980, 'Framebuffer', '320 × 240 RGB332', 'var(--m-fb)'],
+      [0x20035980, 0x2003A450, 'Audio slots', '133 data islands × 36 words', 'var(--m-drv)'],
+      [0x2003A450, 0x2004D050, 'Pressure', '160 × 120 float32, kept between frames', 'var(--m-p)'],
+      [0x2004D050, 0x20056650, 'Field A', 'float16', 'var(--m-field)'],
+      [0x20056650, 0x2005FC50, 'Field B', 'float16', 'var(--m-field)'],
+      [0x2005FC50, 0x20069250, 'Field C', 'float16', 'var(--m-field)'],
+      [0x20069250, 0x20072850, 'Field D', 'float16', 'var(--m-field)'],
+      [0x20072850, 0x2007BE50, 'Field E', 'float16', 'var(--m-field)'],
+      [0x2007BE50, 0x20082000, 'Driver + heap tail', 'frame-restart commands, small objects', 'var(--m-rt)'],
+    ];
+    const el = mk(document.getElementById('memmap')), MX = 10, MW = 980, mx = a => MX + MW * (a - B) / SPAN;
+    el('text', { x: MX, y: 18, 'font-size': 11, class: 't-muted' }, 'SRAM 0x2000_0000');
+    el('text', { x: MX + MW, y: 18, 'text-anchor': 'end', 'font-size': 11, class: 't-muted' }, '0x2008_2000');
+    mem.forEach(([a, b, name, , col]) => {
+      const r = el('rect', { x: mx(a), y: 26, width: Math.max(0.8, mx(b) - mx(a) - 0.8), height: 46, style: 'fill:' + col });
+      const t = document.createElementNS(NS, 'title'); t.textContent = name + ' · ' + (b - a).toLocaleString() + ' B'; r.appendChild(t);
+    });
+    const A0 = 0x20022D80, A1 = 0x2007BE50;
+    el('text', { x: (mx(0x20000000) + mx(0x20013B10)) / 2, y: 54, 'text-anchor': 'middle', 'font-size': 11, class: 't-on' }, 'runtime');
+    el('text', { x: (mx(A0) + mx(A1)) / 2, y: 54, 'text-anchor': 'middle', 'font-size': 11.5, class: 't-on' }, 'arena · 364,752 B');
+    const ZY = 150, zx = a => MX + MW * (a - A0) / (A1 - A0);
+    el('path', { d: `M${mx(A0)},74 L${MX},${ZY - 6} M${mx(A1)},74 L${MX + MW},${ZY - 6}`, style: 'fill:none;stroke:var(--muted);stroke-dasharray:3 3' });
+    mem.filter(m => m[0] >= A0 && m[1] <= A1).forEach(([a, b, name, , col]) => {
+      const w = zx(b) - zx(a);
+      el('rect', { x: zx(a), y: ZY, width: w - 1.2, height: 50, style: 'fill:' + col });
+      el('text', { x: zx(a) + 6, y: ZY + 22, 'font-size': 11.5, class: 't-on', 'font-weight': 600 }, w > 90 ? name : name.replace('Field ', ''));
+      if (w > 90) el('text', { x: zx(a) + 6, y: ZY + 39, 'font-size': 10, class: 't-on' }, (b - a).toLocaleString() + ' B');
+    });
+    el('text', { x: MX, y: ZY + 72, 'font-size': 11, class: 't-muted' }, '0x2002_2D80');
+    el('text', { x: MX + MW, y: ZY + 72, 'text-anchor': 'end', 'font-size': 11, class: 't-muted' }, '0x2007_BE50');
+    el('text', { x: MX + MW / 2, y: ZY + 72, 'text-anchor': 'middle', 'font-size': 11, class: 't-muted' }, 'fields A–E rotate roles every frame (u, v, dye, 2 scratch)');
+    const hex = a => '0x' + a.toString(16).toUpperCase().replace(/^(\w{4})(\w{4})$/, '$1_$2');
+    const tb = document.getElementById('memtable');
+    tb.innerHTML = '<thead><tr><th>Address</th><th>Block</th><th>Contents</th><th class="num">Bytes</th></tr></thead><tbody>' +
+      mem.map(([a, b, name, what, col]) => `<tr><td>${hex(a)}</td><td><span class="sw" style="background:${col}"></span>${name}</td><td class="muted">${what}</td><td class="num">${(b - a).toLocaleString()}</td></tr>`).join('') + '</tbody>'; }
+
+  /* ---------- live fluid (same steps and constants as the board) ---------- */
+  const W = 160, H = 120, N = W * H, OMEGA = 1.7, ORBIT = 419;
+  let u = new Float32Array(N), v = new Float32Array(N), d = new Float32Array(N), u2 = new Float32Array(N), v2 = new Float32Array(N), d2 = new Float32Array(N);
+  const dv = new Float32Array(N), p = new Float32Array(N);
+  const sample = (f, x, y) => { const i = x | 0, j = y | 0, fx = x - i, fy = y - j, k = j * W + i, a = f[k] + (f[k + 1] - f[k]) * fx, b = f[k + W] + (f[k + W + 1] - f[k + W]) * fx; return a + (b - a) * fy; };
+  function advect(dst, src, decay) {
+    for (let y = 1; y < H - 1; y++) for (let x = 1, k = y * W + 1; x < W - 1; x++, k++) {
+      let px = x - u[k], py = y - v[k];
+      px = px < 0.5 ? 0.5 : px > W - 1.5 ? W - 1.5 : px; py = py < 0.5 ? 0.5 : py > H - 1.5 ? H - 1.5 : py;
+      dst[k] = sample(src, px, py) * decay;
+    }
+  }
+  function splat(cx, cy, fx, fy, amt) {
+    for (let y = Math.max(1, (cy | 0) - 4); y < Math.min(H - 1, (cy | 0) + 5); y++) for (let x = Math.max(1, (cx | 0) - 4); x < Math.min(W - 1, (cx | 0) + 5); x++) {
+      const w = 1 - ((x - cx) ** 2 + (y - cy) ** 2) / 16; if (w <= 0) continue;
+      const k = y * W + x; u[k] += fx * w; v[k] += fy * w; d[k] += amt * w;
+    }
+  }
+  let step = 0;
+  function simStep() {
+    for (let s = 0; s < 2; s++) { const a = 2 * Math.PI * (step % ORBIT) / ORBIT + s * Math.PI;
+      splat(W / 2 + 35 * Math.cos(a), H / 2 + 27 * Math.sin(a), -0.9 * Math.sin(a + 0.6), 0.9 * Math.cos(a + 0.6), 0.8); }
+    step++;
+    advect(u2, u, 0.999); advect(v2, v, 0.999); advect(d2, d, 0.994);
+    [u, u2] = [u2, u]; [v, v2] = [v2, v]; [d, d2] = [d2, d];
+    for (let y = 1; y < H - 1; y++) for (let x = 1, k = y * W + 1; x < W - 1; x++, k++) dv[k] = 0.5 * ((u[k + 1] - u[k - 1]) + (v[k + W] - v[k - W]));
+    for (let it = 0; it < 4; it++) for (let c = 0; c < 2; c++) for (let y = 1; y < H - 1; y++) for (let x = 1 + ((1 + y + c) & 1); x < W - 1; x += 2) {
+      const k = y * W + x; p[k] = (1 - OMEGA) * p[k] + OMEGA * 0.25 * (p[k - 1] + p[k + 1] + p[k - W] + p[k + W] - dv[k]); }
+    for (let y = 1; y < H - 1; y++) for (let x = 1, k = y * W + 1; x < W - 1; x++, k++) { u[k] -= 0.5 * (p[k + 1] - p[k - 1]); v[k] -= 0.5 * (p[k + W] - p[k - W]); }
+  }
+  function hsv(h, s, val) { h = ((h % 1) + 1) % 1; const i = Math.floor(h * 6), f = h * 6 - i, P = val * (1 - s), q = val * (1 - f * s), t = val * (1 - (1 - f) * s);
+    return [[val, t, P], [q, val, P], [P, val, t], [P, q, val], [t, P, val], [val, P, q]][i % 6]; }
+  const pals = [];
+  for (let r = 0; r < 32; r++) { const pal = new Uint8Array(768);
+    for (let i = 0; i < 256; i++) { const t = i / 255, c = hsv(0.8 - 0.85 * t + r / 32, 1 - Math.max(0, t - 0.85) * 3, Math.min(1, 3 * t));
+      pal[3 * i] = Math.round((Math.min(255, c[0] * 255) >> 5) * 255 / 7); pal[3 * i + 1] = Math.round((Math.min(255, c[1] * 255) >> 5) * 255 / 7); pal[3 * i + 2] = Math.round((Math.min(255, c[2] * 255) >> 6) * 255 / 3); }
+    pals.push(pal); }
+  const cv = document.getElementById('sim'), ctx = cv.getContext('2d'), off = document.createElement('canvas'); off.width = W; off.height = H;
+  const octx = off.getContext('2d'), img = octx.createImageData(W, H);
+  function draw() { const pal = pals[Math.floor(step / 12) % 32], px = img.data;
+    for (let k = 0; k < N; k++) { let i = (d[k] * 48) | 0; i = i < 0 ? 0 : i > 255 ? 255 : i; px[4 * k] = pal[3 * i]; px[4 * k + 1] = pal[3 * i + 1]; px[4 * k + 2] = pal[3 * i + 2]; px[4 * k + 3] = 255; }
+    octx.putImageData(img, 0, 0); ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, cv.width, cv.height); }
+  for (let i = 0; i < 260; i++) simStep();
+  draw();
+  let visible = true;
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cv);
+  function loop() { if (visible && !document.hidden) { simStep(); draw(); } requestAnimationFrame(loop); }
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) requestAnimationFrame(loop);
+})();
+</script>
+</body>

@@ -11,7 +11,7 @@ A real-time fluid simulation driven by an FM synthesizer, on an RP2350 in MicroP
 
 ## Running it
 
-Hardware: an RP2350 board with 8 MB PSRAM and HSTX wired to an HDMI/DVI connector (developed on a SparkFun IoT RedBoard RP2350), MicroPython 1.27. A gamepad (`gamepadfast`, I2C) is optional.
+Hardware: an Adafruit Fruit Jam, or another RP2350 board with 8 MB PSRAM and HSTX wired to an HDMI/DVI connector. Developed on a Fruit Jam running MicroPython 1.27, SparkFun IoT RedBoard RP2350 build (the same firmware as the rest of this repo). A gamepad (`gamepadfast`, I2C) is optional.
 
 1. Copy the drivers to the board's root or `/lib`: `drivers/dvi_rp2_hstx_audio.py`, `drivers/hdmi_audio.py`, `drivers/colors.py`, `drivers/gamepadfast.py`. Precompiling the two HDMI drivers with `mpy-cross -march=armv7emsp` keeps more SRAM free.
 2. Copy everything in `board/` to a `/FluidFM` folder on the board, including `board/tunes/`.
